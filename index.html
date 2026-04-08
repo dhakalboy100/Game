@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>10 Coat</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ===== MENU SCREEN ===== -->
+  <div id="menu-screen" class="screen">
+    <div class="menu-card">
+      <div class="menu-logo">10 Coat</div>
+      <p class="menu-sub">A 4-player trick-taking card game</p>
+      <div class="rules-box">
+        <p>👤 <strong>Your team:</strong> You + Robot2 (sit opposite)</p>
+        <p>🤖 <strong>Rivals:</strong> Robot1 + Robot3</p>
+        <p>🃏 First to 5 cards picks the <strong>trump suit</strong></p>
+        <p>🎯 Capture the most <strong>10s</strong> to win each round</p>
+        <p>🏆 Win <strong>2 of 3 rounds</strong> to win the match</p>
+      </div>
+      <button id="start-btn" class="btn-orange">Play Game</button>
+    </div>
+  </div>
+
+  <!-- ===== GAME SCREEN ===== -->
+  <div id="game-screen" class="screen hidden">
+
+    <!-- HUD -->
+    <div id="hud">
+      <div id="round-display">Round <span id="round-num">1</span>/3</div>
+      <div id="team-scores">
+        <span class="score-a">You+R2: <strong id="wins-a">0</strong></span>
+        <span class="score-sep">vs</span>
+        <span class="score-b">R1+R3: <strong id="wins-b">0</strong></span>
+      </div>
+      <div id="trump-display">Trump: <span id="trump-suit">—</span></div>
+    </div>
+
+    <!-- Table -->
+    <div id="table">
+
+      <!-- TOP: Robot2 (partner) -->
+      <div id="area-top" class="player-area">
+        <div class="player-label ally">
+          <span class="avatar">🤖</span>
+          <span>Robot2 <em>(ally)</em></span>
+          <span class="tens-badge" id="tens-2"></span>
+        </div>
+        <div class="hand" id="hand-2"></div>
+      </div>
+
+      <!-- MIDDLE ROW -->
+      <div id="middle-row">
+
+        <!-- LEFT: Robot3 (opponent) -->
+        <div id="area-left" class="player-area side">
+          <div class="player-label">
+            <span class="avatar">🤖</span>
+            <span>Robot3</span>
+          </div>
+          <div class="hand vertical" id="hand-3"></div>
+        </div>
+
+        <!-- CENTER: spade + trick cards -->
+        <div id="center">
+          <div id="spade-watermark">♠</div>
+          <div id="trick-grid">
+            <div class="trick-cell cell-top"    id="played-2"></div>
+            <div class="trick-cell cell-left"   id="played-3"></div>
+            <div class="trick-cell cell-center"></div>
+            <div class="trick-cell cell-right"  id="played-1"></div>
+            <div class="trick-cell cell-bottom" id="played-0"></div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Robot1 (opponent) -->
+        <div id="area-right" class="player-area side">
+          <div class="hand vertical" id="hand-1"></div>
+          <div class="player-label">
+            <span class="avatar">🤖</span>
+            <span>Robot1</span>
+          </div>
+        </div>
+
+      </div><!-- /middle-row -->
+
+      <!-- BOTTOM: Human player -->
+      <div id="area-bottom" class="player-area">
+        <div class="player-label">
+          <span class="avatar human-av">👤</span>
+          <span class="your-name">You <em>(ally: Robot2)</em></span>
+          <span class="tens-badge" id="tens-0"></span>
+        </div>
+        <div class="hand" id="hand-0"></div>
+      </div>
+
+    </div><!-- /table -->
+
+    <!-- Status bar -->
+    <div id="status-bar"><span id="status-text">Welcome!</span></div>
+
+  </div><!-- /game-screen -->
+
+  <!-- ===== TRUMP MODAL ===== -->
+  <div id="trump-modal" class="overlay hidden">
+    <div class="modal">
+      <h2>Choose Trump Suit</h2>
+      <p>You got your 5th card — pick a trump suit for this round!</p>
+      <div class="suit-grid">
+        <button class="suit-btn black-suit" data-suit="spades">♠<br><small>Spades</small></button>
+        <button class="suit-btn red-suit"   data-suit="hearts">♥<br><small>Hearts</small></button>
+        <button class="suit-btn red-suit"   data-suit="diamonds">♦<br><small>Diamonds</small></button>
+        <button class="suit-btn black-suit" data-suit="clubs">♣<br><small>Clubs</small></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ROUND RESULT MODAL ===== -->
+  <div id="round-modal" class="overlay hidden">
+    <div class="modal">
+      <h2 id="round-title">Round Over</h2>
+      <div id="round-body"></div>
+      <button id="next-round-btn" class="btn-orange">Next Round</button>
+    </div>
+  </div>
+
+  <!-- ===== GAME OVER MODAL ===== -->
+  <div id="gameover-modal" class="overlay hidden">
+    <div class="modal">
+      <h2 id="gameover-title">Match Over</h2>
+      <div id="gameover-body"></div>
+      <button id="play-again-btn" class="btn-orange">Play Again</button>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<script src="js/game.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>
