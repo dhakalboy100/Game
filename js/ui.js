@@ -1,36 +1,35 @@
 // ============================================================
-//  10 Coat — UI Controller
-//  Manages all DOM updates, event binding, deal loop, and
-//  turn sequencing.  Relies on game.js (TenCoatGame) for logic.
+//  10 Coat — UI Controller (v2 — mobile redesign)
+//  All card hands use absolute positioning + CSS transforms
+//  for reliable rendering on all screen sizes.
 // ============================================================
 
 'use strict';
 
+/* Card dimensions */
+const CW = 52;  // card width  px
+const CH = 76;  // card height px
+
 class UI {
   constructor() {
     this.game    = null;
-    this.aiDelay = 850; // ms between AI card plays
-
-    this._wireButtons();
+    this.aiDelay = 820;
+    this._wire();
   }
 
   /* ==========================================================
-     BUTTON / INPUT WIRING
+     WIRING
      ========================================================== */
-  _wireButtons() {
+  _wire() {
     document.getElementById('start-btn')
       .addEventListener('click', () => this._newGame());
-
     document.getElementById('play-again-btn')
       .addEventListener('click', () => this._newGame());
-
     document.getElementById('next-round-btn')
-      .addEventListener('click', () => this._startNextRound());
-
-    // Trump suit buttons
-    document.querySelectorAll('.suit-btn').forEach(btn => {
-      btn.addEventListener('click', () => this._onTrumpChosen(btn.dataset.suit));
-    });
+      .addEventListener('click', () => this._nextRound());
+    document.querySelectorAll('.s-btn').forEach(b =>
+      b.addEventListener('click', () => this._onTrump(b.dataset.suit))
+    );
   }
 
   /* ==========================================================
@@ -39,259 +38,264 @@ class UI {
   _newGame() {
     this.game = new TenCoatGame();
     this._showScreen('game-screen');
-    this._startNextRound();
+    this._nextRound();
   }
 
-  _startNextRound() {
-    this._hideOverlay('round-modal');
-    this._hideOverlay('gameover-modal');
+  _nextRound() {
+    this._hideOv('round-modal');
+    this._hideOv('gameover-modal');
     this.game.initRound();
     this._updateHUD();
-    this._clearTrickArea();
-    this._clearTensBadges();
+    this._clearTrick();
+    this._hidePill();
     this._status('Dealing cards…');
-    // Small delay so the modal fade is visible before dealing begins
-    setTimeout(() => this._dealLoop(), 180);
+    this._renderAllHands();
+    setTimeout(() => this._dealLoop(), 120);
   }
 
   /* ==========================================================
      DEAL LOOP
      ========================================================== */
   _dealLoop() {
-    // Pause for trump declaration
     if (this.game.state === 'TRUMP_DECLARE') {
       this._renderAllHands();
-      const declarer = this.game.trumpDeclarer;
-
-      if (declarer === 0) {
-        // Human picks trump
-        this._showOverlay('trump-modal');
-        this._status('Choose a trump suit for this round!');
+      const d = this.game.trumpDeclarer;
+      if (d === 0) {
+        this._showOv('trump-modal');
+        this._status('Pick the trump suit!');
       } else {
-        // AI picks trump after a short think
-        this._status(`${this.game.playerNames[declarer]} is choosing trump…`);
+        this._status(`${this.game.playerNames[d]} is choosing trump…`);
         setTimeout(() => {
-          const suit = this.game.aiChooseTrump(declarer);
+          const suit = this.game.aiChooseTrump(d);
           this.game.declareTrump(suit);
           this._updateHUD();
-          this._status(`${this.game.playerNames[declarer]} chose trump: ${SUIT_SYMBOLS[suit]}`);
-          setTimeout(() => this._dealLoop(), 450);
+          this._status(`${this.game.playerNames[d]} chose trump: ${SUIT_SYMBOLS[suit]}`);
+          setTimeout(() => this._dealLoop(), 400);
         }, 700);
       }
       return;
     }
 
-    // Dealing complete — start play
     if (this.game.isDealingComplete()) {
       this._renderAllHands();
-      this._status('All cards dealt. Starting play…');
+      this._status('Cards dealt — starting play…');
       setTimeout(() => {
         this.game.startPlaying();
         this._renderAllHands();
-        this._nextTurn();
+        this._turn();
       }, 700);
       return;
     }
 
-    // Deal one card and schedule the next
     this.game.dealOneCard();
-
-    // Refresh hand display every 8 cards to reduce DOM thrashing
-    const totalDealt = this.game.hands.reduce((n, h) => n + h.length, 0);
-    if (totalDealt % 8 === 0) this._renderAllHands();
-
-    setTimeout(() => this._dealLoop(), 18);
+    const dealt = this.game.hands.reduce((n, h) => n + h.length, 0);
+    if (dealt % 6 === 0) this._renderAllHands();
+    setTimeout(() => this._dealLoop(), 16);
   }
 
-  _onTrumpChosen(suit) {
-    this._hideOverlay('trump-modal');
+  _onTrump(suit) {
+    this._hideOv('trump-modal');
     this.game.declareTrump(suit);
     this._updateHUD();
     this._status(`You chose trump: ${SUIT_SYMBOLS[suit]}`);
-    setTimeout(() => this._dealLoop(), 350);
+    setTimeout(() => this._dealLoop(), 300);
   }
 
   /* ==========================================================
      TURN MANAGEMENT
      ========================================================== */
-  _nextTurn() {
+  _turn() {
     if (this.game.state !== 'PLAYING') return;
-
     const p = this.game.currentPlayer;
-    this._highlightPlayer(p);
+    this._highlight(p);
 
     if (p === 0) {
-      // Human's turn — enable card clicks
-      this._status('Your turn — click a card to play');
+      this._status('Your turn — tap a card to play');
       this._renderHumanHand(true);
     } else {
-      // AI turn
       this._renderHumanHand(false);
       this._status(`${this.game.playerNames[p]} is thinking…`);
-      setTimeout(() => {
-        const card = this.game.aiChooseCard(p);
-        this._executePlay(p, card);
-      }, this.aiDelay);
+      setTimeout(() => this._play(p, this.game.aiChooseCard(p)), this.aiDelay);
     }
   }
 
-  _executePlay(player, card) {
+  _play(player, card) {
     const result = this.game.playCard(player, card);
 
-    // Update hand display (remove played card)
+    // Refresh the player's hand display
     if (player === 0) this._renderHumanHand(false);
     else              this._renderAIHand(player);
 
-    // Animate the played card into the trick area
-    this._showPlayedCard(player, card);
+    // Show the played card in the center
+    this._showTrickCard(player, card);
 
-    if (!result || result.waiting) {
-      // Trick not yet complete — next player
-      this._nextTurn();
+    if (!result || result.waiting) { this._turn(); return; }
+
+    // Trick complete
+    const msg = result.tens > 0
+      ? `${result.winnerName} wins the trick — ${result.tens} ten${result.tens > 1 ? 's' : ''} captured! 🎯`
+      : `${result.winnerName} wins the trick.`;
+    this._status(msg);
+    this._updatePill();
+
+    if (result.roundOver) {
+      setTimeout(() => this._roundResult(), 1600);
+    } else {
+      setTimeout(() => { this._clearTrick(); this._turn(); }, 1600);
+    }
+  }
+
+  /* ==========================================================
+     RESULTS
+     ========================================================== */
+  _roundResult() {
+    const r       = this.game.getRoundResult();
+    const [tA,tB] = [r.tensTeamA, r.tensTeamB];
+    const [wA,wB] = this.game.teamWins;
+
+    let headline, cls;
+    if      (r.roundWinner === 0) { headline = '🎉 Your team wins the round!'; cls = 'res-win'; }
+    else if (r.roundWinner === 1) { headline = '😔 Robot team wins the round.'; cls = 'res-lose'; }
+    else                          { headline = "🤝 Tie — no point."; cls = 'res-tie'; }
+
+    document.getElementById('r-title').textContent =
+      `Round ${this.game.currentRound} / ${this.game.maxRounds}`;
+
+    document.getElementById('r-body').innerHTML = `
+      <div class="${cls}">${headline}</div><br>
+      10s this round:<br>
+      👤 Your team: <b>${tA}</b> &nbsp;|&nbsp; 🤖 Robots: <b>${tB}</b><br><br>
+      Match score: <b>${wA} – ${wB}</b>
+    `;
+
+    const over = this.game.isMatchOver();
+    document.getElementById('next-round-btn').style.display = over ? 'none' : '';
+    this._showOv('round-modal');
+    if (over) setTimeout(() => { this._hideOv('round-modal'); this._matchResult(); }, 2800);
+  }
+
+  _matchResult() {
+    const w       = this.game.getMatchWinner();
+    const [wA,wB] = this.game.teamWins;
+    let headline, cls;
+    if      (w === 0) { headline = '🏆 Your team wins the match!'; cls = 'res-win'; }
+    else if (w === 1) { headline = '🤖 Robots win. Better luck next time!'; cls = 'res-lose'; }
+    else              { headline = "🤝 It's a draw!"; cls = 'res-tie'; }
+
+    document.getElementById('go-title').textContent = 'Match Over!';
+    document.getElementById('go-body').innerHTML =
+      `<div class="${cls}">${headline}</div><br>Final: <b>${wA} – ${wB}</b>`;
+    this._showOv('gameover-modal');
+  }
+
+  /* ==========================================================
+     CARD RENDERING  (absolute-positioned, arc-fanned)
+     ========================================================== */
+  _renderAllHands() {
+    this._renderHumanHand(false);
+    this._renderAIHand(1);
+    this._renderAIHand(2);
+    this._renderAIHand(3);
+  }
+
+  /* --- Human: face-up arc fan --- */
+  _renderHumanHand(clickable) {
+    const zone  = document.getElementById('hand-0');
+    const wrap  = document.getElementById('hw-0');
+    zone.innerHTML = '';
+
+    const cards = this.game.hands[0];
+    const n     = cards.length;
+    if (n === 0) {
+      zone.style.width  = '0';
+      zone.style.height = '0';
       return;
     }
 
-    // Trick complete
-    if (result.roundOver) {
-      const msg = result.tens > 0
-        ? `${result.winnerName} wins the last trick and captures ${result.tens} ten${result.tens > 1 ? 's' : ''}! 🎯`
-        : `${result.winnerName} wins the last trick.`;
-      this._status(msg);
-      this._updateTensBadges();
-      setTimeout(() => this._showRoundResult(), 1600);
-    } else {
-      const msg = result.tens > 0
-        ? `${result.winnerName} wins the trick — captures ${result.tens} ten${result.tens > 1 ? 's' : ''}! 🎯`
-        : `${result.winnerName} wins the trick.`;
-      this._status(msg);
-      this._updateTensBadges();
-      setTimeout(() => {
-        this._clearTrickArea();
-        this._nextTurn();
-      }, 1500);
-    }
-  }
+    const valid   = clickable ? this.game.getValidCards(0) : [];
+    const avail   = Math.min(window.innerWidth - 24, window.innerWidth * 0.95);
+    const gap     = n > 1 ? Math.min(38, (avail - CW) / (n - 1)) : 0;
+    const totalW  = (n - 1) * gap + CW;
+    const totalH  = CH + 28; // extra for arc rise
 
-  /* ==========================================================
-     ROUND & MATCH RESULTS
-     ========================================================== */
-  _showRoundResult() {
-    const result = this.game.getRoundResult();
-    const [tA, tB] = [result.tensTeamA, result.tensTeamB];
-    const [wA, wB] = this.game.teamWins;
+    zone.style.width  = totalW + 'px';
+    zone.style.height = totalH + 'px';
 
-    let headline, cls;
-    if (result.roundWinner === 0) {
-      headline = '🎉 Your team wins the round!';
-      cls = 'result-win';
-    } else if (result.roundWinner === 1) {
-      headline = '😔 Opponent team wins the round.';
-      cls = 'result-lose';
-    } else {
-      headline = "🤝 It's a tie — no point awarded.";
-      cls = 'result-tie';
-    }
+    cards.forEach((card, i) => {
+      const t      = n > 1 ? i / (n - 1) : 0.5;
+      const angle  = (t - 0.5) * 28;                        // -14° … +14°
+      const rise   = Math.pow(t - 0.5, 2) * 24;             // edges dip, center rises
+      const bottom = 28 - rise;
 
-    document.getElementById('round-title').textContent =
-      `Round ${this.game.currentRound} of ${this.game.maxRounds} — Over`;
-
-    document.getElementById('round-body').innerHTML = `
-      <div class="${cls}">${headline}</div>
-      <br>
-      <b>10s captured this round:</b><br>
-      👤 Your team (You + Robot2): <b>${tA}</b>&nbsp; tens<br>
-      🤖 Robot team (R1 + R3): <b>${tB}</b>&nbsp; tens<br>
-      <br>
-      <b>Match score:</b> You team <b>${wA}</b> – <b>${wB}</b> Robot team
-    `;
-
-    const isOver = this.game.isMatchOver();
-    document.getElementById('next-round-btn').style.display = isOver ? 'none' : '';
-
-    this._showOverlay('round-modal');
-
-    if (isOver) {
-      setTimeout(() => {
-        this._hideOverlay('round-modal');
-        this._showMatchResult();
-      }, 2800);
-    }
-  }
-
-  _showMatchResult() {
-    const winner  = this.game.getMatchWinner();
-    const [wA, wB] = this.game.teamWins;
-
-    let headline, cls;
-    if (winner === 0) {
-      headline = '🏆 Your team wins the match! Well played!';
-      cls = 'result-win';
-    } else if (winner === 1) {
-      headline = '🤖 Robots win the match. Better luck next time!';
-      cls = 'result-lose';
-    } else {
-      headline = "🤝 It's a draw!";
-      cls = 'result-tie';
-    }
-
-    document.getElementById('gameover-title').textContent = 'Match Over!';
-    document.getElementById('gameover-body').innerHTML = `
-      <div class="${cls}">${headline}</div>
-      <br>
-      Final score: Your team <b>${wA}</b> – <b>${wB}</b> Robot team
-    `;
-    this._showOverlay('gameover-modal');
-  }
-
-  /* ==========================================================
-     RENDERING — HANDS
-     ========================================================== */
-  _renderAllHands() {
-    for (let p = 0; p < 4; p++) {
-      if (p === 0) this._renderHumanHand(false);
-      else         this._renderAIHand(p);
-    }
-  }
-
-  /** Render the human player's hand (face-up). */
-  _renderHumanHand(clickable) {
-    const container = document.getElementById('hand-0');
-    container.innerHTML = '';
-    const validCards = clickable ? this.game.getValidCards(0) : [];
-
-    for (const card of this.game.hands[0]) {
-      const el      = this._makeCardEl(card);
-      const isValid = validCards.includes(card);
+      const el = this._cardEl(card);
+      el.style.left   = (i * gap) + 'px';
+      el.style.bottom = bottom + 'px';
+      el.style.top    = 'auto';
+      el.style.transform = `rotate(${angle}deg)`;
+      el.style.transformOrigin = 'bottom center';
+      el.style.zIndex = i + 1;
 
       if (clickable) {
-        if (isValid) {
+        const ok = valid.includes(card);
+        if (ok) {
           el.classList.add('playable');
-          el.addEventListener('click', () => this._onHumanCardClick(card));
+          el.addEventListener('click', () => this._onCardClick(card));
+          el.addEventListener('touchend', e => { e.preventDefault(); this._onCardClick(card); });
         } else {
           el.classList.add('dim');
-          el.addEventListener('click', () => this._status('You must follow suit!'));
+          el.addEventListener('click', () => this._status('Follow suit — must play a matching suit!'));
+          el.addEventListener('touchend', e => { e.preventDefault(); this._status('Follow suit!'); });
         }
       }
-      container.appendChild(el);
-    }
+      zone.appendChild(el);
+    });
   }
 
-  /** Render an AI player's hand as card backs. */
+  /* --- AI player 2 (top) — horizontal fan of backs --- */
+  /* --- AI player 1 & 3 (sides) — vertical fan of backs --- */
   _renderAIHand(player) {
-    const container = document.getElementById(`hand-${player}`);
-    container.innerHTML = '';
-    for (let i = 0; i < this.game.hands[player].length; i++) {
-      const back = document.createElement('div');
-      back.className = 'card-back';
-      back.textContent = '⊞';
-      container.appendChild(back);
+    const zone = document.getElementById(`hand-${player}`);
+    zone.innerHTML = '';
+
+    const n = this.game.hands[player].length;
+    if (n === 0) { zone.style.width = '0'; zone.style.height = '0'; return; }
+
+    if (player === 2) {
+      /* top player — horizontal overlap */
+      const gap    = Math.min(30, Math.max(10, (window.innerWidth * 0.5 - CW) / Math.max(n - 1, 1)));
+      const totalW = (n - 1) * gap + CW;
+      zone.style.width  = totalW + 'px';
+      zone.style.height = CH + 'px';
+
+      for (let i = 0; i < n; i++) {
+        const el = this._backEl();
+        el.style.left   = (i * gap) + 'px';
+        el.style.top    = '0';
+        el.style.zIndex = i + 1;
+        zone.appendChild(el);
+      }
+    } else {
+      /* side players — vertical overlap */
+      const avail  = document.getElementById('middle').offsetHeight || 200;
+      const gap    = Math.min(22, Math.max(8, (avail * 0.7 - CH) / Math.max(n - 1, 1)));
+      const totalH = (n - 1) * gap + CH;
+      zone.style.width  = CW + 'px';
+      zone.style.height = totalH + 'px';
+
+      for (let i = 0; i < n; i++) {
+        const el = this._backEl();
+        el.style.top    = (i * gap) + 'px';
+        el.style.left   = '0';
+        el.style.zIndex = i + 1;
+        zone.appendChild(el);
+      }
     }
   }
 
-  /** Create a DOM element for a face-up card. */
-  _makeCardEl(card) {
+  /* --- Card element constructors --- */
+  _cardEl(card) {
     const el = document.createElement('div');
-    el.className = `card ${card.color}${card.isTen ? ' ten-card' : ''}`;
+    el.className = `card ${card.color}${card.isTen ? ' ten' : ''}`;
     el.innerHTML =
       `<span class="cv">${card.display}</span>` +
       `<span class="cs">${card.symbol}</span>` +
@@ -299,62 +303,43 @@ class UI {
     return el;
   }
 
-  /* ==========================================================
-     RENDERING — TRICK AREA
-     ========================================================== */
-  _showPlayedCard(player, card) {
-    const cell = document.getElementById(`played-${player}`);
-    if (!cell) return;
-    cell.innerHTML = '';
-    const el = this._makeCardEl(card);
-    el.classList.add('deal-anim');
-    cell.appendChild(el);
-  }
-
-  _clearTrickArea() {
-    for (let p = 0; p < 4; p++) {
-      const cell = document.getElementById(`played-${p}`);
-      if (cell) cell.innerHTML = '';
-    }
+  _backEl() {
+    const el = document.createElement('div');
+    el.className = 'card-back';
+    return el;
   }
 
   /* ==========================================================
-     RENDERING — TENS BADGES (live score hints)
+     TRICK AREA
      ========================================================== */
-  _updateTensBadges() {
-    const [tA, tB] = this.game.tensWon;
-    this._setBadge('tens-0', tA, 'Your team');
-    this._setBadge('tens-2', tA, 'Your team');
+  _showTrickCard(player, card) {
+    const spot = document.getElementById(`played-${player}`);
+    if (!spot) return;
+    spot.innerHTML = '';
+    const el = this._cardEl(card);
+    // Static position inside the spot
+    el.style.position = 'static';
+    el.classList.add('deal-in');
+    spot.appendChild(el);
   }
 
-  _setBadge(id, value, label) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (value > 0) {
-      el.textContent  = `${value} ten${value > 1 ? 's' : ''}`;
-      el.classList.add('visible');
-    } else {
-      el.classList.remove('visible');
-    }
-  }
-
-  _clearTensBadges() {
-    ['tens-0', 'tens-2'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) { el.textContent = ''; el.classList.remove('visible'); }
+  _clearTrick() {
+    [0,1,2,3].forEach(p => {
+      const s = document.getElementById(`played-${p}`);
+      if (s) s.innerHTML = '';
     });
   }
 
   /* ==========================================================
-     HUD UPDATE
+     HUD / PILLS
      ========================================================== */
   _updateHUD() {
     const g = this.game;
     document.getElementById('round-num').textContent = g.currentRound || '—';
-    document.getElementById('wins-a').textContent    = g.teamWins[0];
-    document.getElementById('wins-b').textContent    = g.teamWins[1];
+    document.getElementById('wins-a').textContent = g.teamWins[0];
+    document.getElementById('wins-b').textContent = g.teamWins[1];
 
-    const span = document.getElementById('trump-suit');
+    const span = document.getElementById('trump-sym');
     if (g.trump) {
       span.textContent = SUIT_SYMBOLS[g.trump];
       span.style.color = SUIT_COLORS[g.trump] === 'red' ? '#ff5252' : '#fff';
@@ -364,32 +349,45 @@ class UI {
     }
   }
 
+  _updatePill() {
+    const [tA] = this.game.tensWon;
+    const pill = document.getElementById('tens-pill');
+    if (!pill) return;
+    pill.textContent = `${tA} ten${tA !== 1 ? 's' : ''}`;
+    pill.classList.remove('hidden');
+    if (tA === 0) pill.classList.add('hidden');
+  }
+
+  _hidePill() {
+    const pill = document.getElementById('tens-pill');
+    if (pill) pill.classList.add('hidden');
+  }
+
   /* ==========================================================
      PLAYER HIGHLIGHT
      ========================================================== */
-  _highlightPlayer(activePlayer) {
-    const areaMap = { 0: 'area-bottom', 1: 'area-right', 2: 'area-top', 3: 'area-left' };
-    document.querySelectorAll('.player-area').forEach(a => a.classList.remove('active'));
-    const area = document.getElementById(areaMap[activePlayer]);
-    if (area) area.classList.add('active');
+  _highlight(p) {
+    const map = { 0:'zone-bot', 1:'zone-right', 2:'zone-top', 3:'zone-left' };
+    document.querySelectorAll('.zone').forEach(z => z.classList.remove('active'));
+    const z = document.getElementById(map[p]);
+    if (z) z.classList.add('active');
   }
 
   /* ==========================================================
      HUMAN CARD CLICK
      ========================================================== */
-  _onHumanCardClick(card) {
-    if (this.game.state !== 'PLAYING') return;
-    if (this.game.currentPlayer !== 0)  return;
-    // Render without clicks immediately to prevent double-play
-    this._renderHumanHand(false);
-    this._executePlay(0, card);
+  _onCardClick(card) {
+    if (this.game.state !== 'PLAYING' || this.game.currentPlayer !== 0) return;
+    this._renderHumanHand(false); // lock clicks immediately
+    this._play(0, card);
   }
 
   /* ==========================================================
-     STATUS BAR
+     STATUS
      ========================================================== */
   _status(msg) {
-    document.getElementById('status-text').textContent = msg;
+    const el = document.getElementById('status-txt');
+    if (el) el.textContent = msg;
   }
 
   /* ==========================================================
@@ -399,10 +397,8 @@ class UI {
     document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
     document.getElementById(id).classList.remove('hidden');
   }
-
-  _showOverlay(id) { document.getElementById(id).classList.remove('hidden'); }
-  _hideOverlay(id) { document.getElementById(id).classList.add('hidden'); }
+  _showOv(id) { document.getElementById(id).classList.remove('hidden'); }
+  _hideOv(id) { document.getElementById(id).classList.add('hidden'); }
 }
 
-/* Boot */
 window.addEventListener('load', () => { new UI(); });

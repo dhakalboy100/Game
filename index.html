@@ -2,142 +2,137 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>10 Coat</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div id="app">
 
-  <!-- ===== MENU SCREEN ===== -->
+  <!-- ===== MENU ===== -->
   <div id="menu-screen" class="screen">
-    <div class="menu-card">
-      <div class="menu-logo">10 Coat</div>
-      <p class="menu-sub">A 4-player trick-taking card game</p>
-      <div class="rules-box">
-        <p>👤 <strong>Your team:</strong> You + Robot2 (sit opposite)</p>
-        <p>🤖 <strong>Rivals:</strong> Robot1 + Robot3</p>
-        <p>🃏 First to 5 cards picks the <strong>trump suit</strong></p>
-        <p>🎯 Capture the most <strong>10s</strong> to win each round</p>
-        <p>🏆 Win <strong>2 of 3 rounds</strong> to win the match</p>
+    <div class="menu-box">
+      <div class="logo">10 Coat</div>
+      <p class="tagline">Trick-taking card game</p>
+      <div class="rules">
+        <div class="rule-row">👤 <span>You + Robot2 &nbsp;vs&nbsp; Robot1 + Robot3</span></div>
+        <div class="rule-row">🃏 <span>Get 5 cards → choose trump suit</span></div>
+        <div class="rule-row">🎯 <span>Capture the most 10s each round</span></div>
+        <div class="rule-row">🏆 <span>Win 2 of 3 rounds to win!</span></div>
       </div>
-      <button id="start-btn" class="btn-orange">Play Game</button>
+      <button id="start-btn" class="big-btn">Play Game</button>
     </div>
   </div>
 
-  <!-- ===== GAME SCREEN ===== -->
+  <!-- ===== GAME ===== -->
   <div id="game-screen" class="screen hidden">
 
-    <!-- HUD -->
-    <div id="hud">
-      <div id="round-display">Round <span id="round-num">1</span>/3</div>
-      <div id="team-scores">
-        <span class="score-a">You+R2: <strong id="wins-a">0</strong></span>
-        <span class="score-sep">vs</span>
-        <span class="score-b">R1+R3: <strong id="wins-b">0</strong></span>
+    <!-- Top bar -->
+    <div id="topbar">
+      <div id="round-label">Round <span id="round-num">1</span>/3</div>
+      <div id="team-score">
+        <span class="sc-you">You+R2&nbsp;<b id="wins-a">0</b></span>
+        <span class="sc-sep">–</span>
+        <span class="sc-bot"><b id="wins-b">0</b>&nbsp;R1+R3</span>
       </div>
-      <div id="trump-display">Trump: <span id="trump-suit">—</span></div>
+      <div id="trump-label">Trump:&nbsp;<span id="trump-sym">—</span></div>
     </div>
 
-    <!-- Table -->
+    <!-- Table (fills screen between topbar and statusbar) -->
     <div id="table">
 
-      <!-- TOP: Robot2 (partner) -->
-      <div id="area-top" class="player-area">
-        <div class="player-label ally">
-          <span class="avatar">🤖</span>
-          <span>Robot2 <em>(ally)</em></span>
-          <span class="tens-badge" id="tens-2"></span>
-        </div>
-        <div class="hand" id="hand-2"></div>
+      <!-- TOP: Robot2 -->
+      <div id="zone-top" class="zone">
+        <div class="p-tag ally-tag">🤖 Robot2 <em>(ally)</em></div>
+        <div class="hand-wrap" id="hw-2"><div class="hand-zone" id="hand-2"></div></div>
       </div>
 
       <!-- MIDDLE ROW -->
-      <div id="middle-row">
+      <div id="middle">
 
-        <!-- LEFT: Robot3 (opponent) -->
-        <div id="area-left" class="player-area side">
-          <div class="player-label">
-            <span class="avatar">🤖</span>
-            <span>Robot3</span>
+        <!-- LEFT: Robot3 -->
+        <div id="zone-left" class="zone">
+          <div class="p-tag">🤖 Robot3</div>
+          <div class="hand-wrap vertical-wrap" id="hw-3">
+            <div class="hand-zone" id="hand-3"></div>
           </div>
-          <div class="hand vertical" id="hand-3"></div>
         </div>
 
-        <!-- CENTER: spade + trick cards -->
+        <!-- CENTER: trick area -->
         <div id="center">
-          <div id="spade-watermark">♠</div>
-          <div id="trick-grid">
-            <div class="trick-cell cell-top"    id="played-2"></div>
-            <div class="trick-cell cell-left"   id="played-3"></div>
-            <div class="trick-cell cell-center"></div>
-            <div class="trick-cell cell-right"  id="played-1"></div>
-            <div class="trick-cell cell-bottom" id="played-0"></div>
+          <div id="spade-mark">♠</div>
+          <div id="trick">
+            <div class="t-spot" id="played-2"></div>
+            <div id="t-mid-row">
+              <div class="t-spot" id="played-3"></div>
+              <div id="t-gap"></div>
+              <div class="t-spot" id="played-1"></div>
+            </div>
+            <div class="t-spot" id="played-0"></div>
           </div>
         </div>
 
-        <!-- RIGHT: Robot1 (opponent) -->
-        <div id="area-right" class="player-area side">
-          <div class="hand vertical" id="hand-1"></div>
-          <div class="player-label">
-            <span class="avatar">🤖</span>
-            <span>Robot1</span>
+        <!-- RIGHT: Robot1 -->
+        <div id="zone-right" class="zone">
+          <div class="hand-wrap vertical-wrap" id="hw-1">
+            <div class="hand-zone" id="hand-1"></div>
           </div>
+          <div class="p-tag">🤖 Robot1</div>
         </div>
 
-      </div><!-- /middle-row -->
+      </div><!-- /middle -->
 
-      <!-- BOTTOM: Human player -->
-      <div id="area-bottom" class="player-area">
-        <div class="player-label">
-          <span class="avatar human-av">👤</span>
-          <span class="your-name">You <em>(ally: Robot2)</em></span>
-          <span class="tens-badge" id="tens-0"></span>
+      <!-- BOTTOM: Human -->
+      <div id="zone-bot" class="zone">
+        <div class="p-tag you-tag">
+          <span>👤 <b>You</b> <em>(ally: Robot2)</em></span>
+          <span id="tens-pill" class="tens-pill hidden">0 tens</span>
         </div>
-        <div class="hand" id="hand-0"></div>
+        <div class="hand-wrap" id="hw-0"><div class="hand-zone" id="hand-0"></div></div>
       </div>
 
     </div><!-- /table -->
 
     <!-- Status bar -->
-    <div id="status-bar"><span id="status-text">Welcome!</span></div>
+    <div id="statusbar"><span id="status-txt">—</span></div>
 
   </div><!-- /game-screen -->
 
   <!-- ===== TRUMP MODAL ===== -->
-  <div id="trump-modal" class="overlay hidden">
+  <div class="overlay hidden" id="trump-modal">
     <div class="modal">
-      <h2>Choose Trump Suit</h2>
-      <p>You got your 5th card — pick a trump suit for this round!</p>
+      <h2>Choose Trump</h2>
+      <p>You got 5 cards — pick the trump suit for this round!</p>
       <div class="suit-grid">
-        <button class="suit-btn black-suit" data-suit="spades">♠<br><small>Spades</small></button>
-        <button class="suit-btn red-suit"   data-suit="hearts">♥<br><small>Hearts</small></button>
-        <button class="suit-btn red-suit"   data-suit="diamonds">♦<br><small>Diamonds</small></button>
-        <button class="suit-btn black-suit" data-suit="clubs">♣<br><small>Clubs</small></button>
+        <button class="s-btn s-black" data-suit="spades">♠<br><small>Spades</small></button>
+        <button class="s-btn s-red"   data-suit="hearts">♥<br><small>Hearts</small></button>
+        <button class="s-btn s-red"   data-suit="diamonds">♦<br><small>Diamonds</small></button>
+        <button class="s-btn s-black" data-suit="clubs">♣<br><small>Clubs</small></button>
       </div>
     </div>
   </div>
 
-  <!-- ===== ROUND RESULT MODAL ===== -->
-  <div id="round-modal" class="overlay hidden">
+  <!-- ===== ROUND RESULT ===== -->
+  <div class="overlay hidden" id="round-modal">
     <div class="modal">
-      <h2 id="round-title">Round Over</h2>
-      <div id="round-body"></div>
-      <button id="next-round-btn" class="btn-orange">Next Round</button>
+      <h2 id="r-title">Round Over</h2>
+      <div id="r-body"></div>
+      <button id="next-round-btn" class="big-btn">Next Round</button>
     </div>
   </div>
 
-  <!-- ===== GAME OVER MODAL ===== -->
-  <div id="gameover-modal" class="overlay hidden">
+  <!-- ===== GAME OVER ===== -->
+  <div class="overlay hidden" id="gameover-modal">
     <div class="modal">
-      <h2 id="gameover-title">Match Over</h2>
-      <div id="gameover-body"></div>
-      <button id="play-again-btn" class="btn-orange">Play Again</button>
+      <h2 id="go-title">Match Over!</h2>
+      <div id="go-body"></div>
+      <button id="play-again-btn" class="big-btn">Play Again</button>
     </div>
   </div>
 
-</div><!-- /app -->
-
+</div>
 <script src="js/game.js"></script>
 <script src="js/ui.js"></script>
 </body>
