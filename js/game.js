@@ -54,6 +54,7 @@ class TenCoatGame {
     this.completedTricks = [];
     this.tricksWon       = [0, 0, 0, 0];
     this.tensWon         = [0, 0];           // per team
+    this.trumpTenTeam    = -1;               // which team captured the trump-suit 10
     this.trump           = null;
     this.trumpDeclared   = false;
     this.trumpDeclarer   = -1;
@@ -179,6 +180,10 @@ class TenCoatGame {
     this.tricksWon[winner.player] += 1;
     this.completedTricks.push({ entries: trick.slice(), winner: winner.player, tens });
 
+    // Track which team captures the trump-suit 10 (tiebreaker)
+    if (trick.some(e => e.card.suit === this.trump && e.card.value === 10))
+      this.trumpTenTeam = winTeam;
+
     const result = {
       trickWinner: winner.player,
       winnerName:  this.playerNames[winner.player],
@@ -226,15 +231,27 @@ class TenCoatGame {
      ========================================================== */
 
   /**
-   * Returns { tensTeamA, tensTeamB, roundWinner }
+   * Returns { tensTeamA, tensTeamB, roundWinner, trumpTiebreak }
    * roundWinner: 0 = team A (You+R2), 1 = team B (R1+R3), -1 = tie
+   * If both teams have 2 tens, the team that captured the trump-suit 10 wins.
    */
   getRoundResult() {
     const [tA, tB] = this.tensWon;
     let roundWinner = -1;
-    if (tA > tB) { roundWinner = 0; this.teamWins[0]++; }
-    else if (tB > tA) { roundWinner = 1; this.teamWins[1]++; }
-    return { tensTeamA: tA, tensTeamB: tB, roundWinner };
+    let trumpTiebreak = false;
+
+    if (tA > tB) {
+      roundWinner = 0; this.teamWins[0]++;
+    } else if (tB > tA) {
+      roundWinner = 1; this.teamWins[1]++;
+    } else {
+      // 2–2 tie: trump 10 holder wins
+      trumpTiebreak = true;
+      if (this.trumpTenTeam === 0)      { roundWinner = 0; this.teamWins[0]++; }
+      else if (this.trumpTenTeam === 1) { roundWinner = 1; this.teamWins[1]++; }
+    }
+
+    return { tensTeamA: tA, tensTeamB: tB, roundWinner, trumpTiebreak };
   }
 
   isMatchOver() {

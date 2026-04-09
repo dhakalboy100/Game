@@ -30,6 +30,52 @@ class UI {
     document.querySelectorAll('.s-btn').forEach(b =>
       b.addEventListener('click', () => this._onTrump(b.dataset.suit))
     );
+    // Tracker toggle
+    document.getElementById('tracker-btn')
+      .addEventListener('click', () => this._toggleTracker());
+  }
+
+  _toggleTracker() {
+    const panel = document.getElementById('tracker-panel');
+    if (panel.classList.contains('hidden')) {
+      panel.classList.remove('hidden');
+      this._updateTracker();
+    } else {
+      panel.classList.add('hidden');
+    }
+  }
+
+  _updateTracker() {
+    const body = document.getElementById('tracker-body');
+    if (!body) return;
+
+    // Collect every card played in completed tricks + current trick
+    const played = new Set();
+    for (const t of this.game.completedTricks)
+      for (const e of t.entries)
+        played.add(`${e.card.suit}-${e.card.value}`);
+    for (const e of this.game.currentTrick)
+      played.add(`${e.card.suit}-${e.card.value}`);
+
+    const suits = [
+      { name: 'spades',   sym: '♠', col: 'black' },
+      { name: 'hearts',   sym: '♥', col: 'red'   },
+      { name: 'clubs',    sym: '♣', col: 'black' },
+      { name: 'diamonds', sym: '♦', col: 'red'   },
+    ];
+    const ORDER = [14,13,12,11,10,9,8,7,6,5,4,3,2];
+    const vn = v => ({14:'A',13:'K',12:'Q',11:'J'}[v] || String(v));
+
+    body.innerHTML = suits.map(s => {
+      const chips = ORDER.map(v => {
+        const gone = played.has(`${s.name}-${v}`);
+        return `<span class="tr-chip ${gone ? 'gone' : 'remain ' + s.col}">${vn(v)}</span>`;
+      }).join('');
+      return `<div class="tr-row">
+        <span class="tr-suit-sym ${s.col}">${s.sym}</span>
+        <div class="tr-chips">${chips}</div>
+      </div>`;
+    }).join('');
   }
 
   /* ==========================================================
@@ -131,7 +177,11 @@ class UI {
 
     if (!result || result.waiting) { this._turn(); return; }
 
-    // Trick complete
+    // Trick complete — refresh tracker if open
+    const trackerPanel = document.getElementById('tracker-panel');
+    if (trackerPanel && !trackerPanel.classList.contains('hidden'))
+      this._updateTracker();
+
     const msg = result.tens > 0
       ? `${result.winnerName} wins the trick — ${result.tens} ten${result.tens > 1 ? 's' : ''} captured! 🎯`
       : `${result.winnerName} wins the trick.`;
@@ -153,16 +203,25 @@ class UI {
     const [tA,tB] = [r.tensTeamA, r.tensTeamB];
     const [wA,wB] = this.game.teamWins;
 
-    let headline, cls;
-    if      (r.roundWinner === 0) { headline = '🎉 Your team wins the round!'; cls = 'res-win'; }
-    else if (r.roundWinner === 1) { headline = '😔 Robot team wins the round.'; cls = 'res-lose'; }
-    else                          { headline = "🤝 Tie — no point."; cls = 'res-tie'; }
+    let headline, cls, sub = '';
+    if (r.roundWinner === 0) {
+      headline = '🎉 Your team wins the round!';
+      cls = 'res-win';
+      if (r.trumpTiebreak) sub = `<br><small style="color:#aaa">2–2 tie broken by trump 10 ${SUIT_SYMBOLS[this.game.trump]}</small>`;
+    } else if (r.roundWinner === 1) {
+      headline = '😔 Robot team wins the round.';
+      cls = 'res-lose';
+      if (r.trumpTiebreak) sub = `<br><small style="color:#aaa">2–2 tie broken by trump 10 ${SUIT_SYMBOLS[this.game.trump]}</small>`;
+    } else {
+      headline = "🤝 Tie — no point.";
+      cls = 'res-tie';
+    }
 
     document.getElementById('r-title').textContent =
       `Round ${this.game.currentRound} / ${this.game.maxRounds}`;
 
     document.getElementById('r-body').innerHTML = `
-      <div class="${cls}">${headline}</div><br>
+      <div class="${cls}">${headline}${sub}</div><br>
       10s this round:<br>
       👤 Your team: <b>${tA}</b> &nbsp;|&nbsp; 🤖 Robots: <b>${tB}</b><br><br>
       Match score: <b>${wA} – ${wB}</b>
