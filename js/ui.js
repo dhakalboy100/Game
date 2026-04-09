@@ -198,57 +198,116 @@ class UI {
     this._renderAIHand(3);
   }
 
-  /* --- Human: face-up arc fan --- */
+  /* --- Human: face-up arc fan with swipe + 3-D lift --- */
   _renderHumanHand(clickable) {
-    const zone  = document.getElementById('hand-0');
-    const wrap  = document.getElementById('hw-0');
+    const zone = document.getElementById('hand-0');
     zone.innerHTML = '';
 
     const cards = this.game.hands[0];
     const n     = cards.length;
-    if (n === 0) {
-      zone.style.width  = '0';
-      zone.style.height = '0';
-      return;
-    }
+    if (n === 0) { zone.style.width = '0'; zone.style.height = '0'; return; }
 
-    const valid   = clickable ? this.game.getValidCards(0) : [];
-    const avail   = Math.min(window.innerWidth - 24, window.innerWidth * 0.95);
-    const gap     = n > 1 ? Math.min(38, (avail - CW) / (n - 1)) : 0;
-    const totalW  = (n - 1) * gap + CW;
-    const totalH  = CH + 28; // extra for arc rise
+    const valid  = clickable ? this.game.getValidCards(0) : [];
+    const avail  = Math.min(window.innerWidth - 16, window.innerWidth * 0.97);
+    // Wider spacing: target 46px gap, shrink only if necessary
+    const gap    = n > 1 ? Math.min(46, (avail - CW) / (n - 1)) : 0;
+    const totalW = (n - 1) * gap + CW;
+    const totalH = CH + 32;
 
     zone.style.width  = totalW + 'px';
     zone.style.height = totalH + 'px';
 
     cards.forEach((card, i) => {
       const t      = n > 1 ? i / (n - 1) : 0.5;
-      const angle  = (t - 0.5) * 28;                        // -14° … +14°
-      const rise   = Math.pow(t - 0.5, 2) * 24;             // edges dip, center rises
-      const bottom = 28 - rise;
+      const angle  = (t - 0.5) * 26;          // –13° … +13°
+      const dip    = Math.pow(t - 0.5, 2) * 22;
+      const bottom = 32 - dip;
 
       const el = this._cardEl(card);
-      el.style.left   = (i * gap) + 'px';
-      el.style.bottom = bottom + 'px';
-      el.style.top    = 'auto';
-      el.style.transform = `rotate(${angle}deg)`;
+      el.style.left            = (i * gap) + 'px';
+      el.style.bottom          = bottom + 'px';
+      el.style.top             = 'auto';
+      el.style.setProperty('--rot', `${angle}deg`);
+      el.style.transform       = `rotate(${angle}deg)`;
       el.style.transformOrigin = 'bottom center';
-      el.style.zIndex = i + 1;
+      el.style.zIndex          = i + 1;
 
       if (clickable) {
         const ok = valid.includes(card);
         if (ok) {
           el.classList.add('playable');
-          el.addEventListener('click', () => this._onCardClick(card));
-          el.addEventListener('touchend', e => { e.preventDefault(); this._onCardClick(card); });
+          this._addPlayGesture(el, card, angle);
         } else {
           el.classList.add('dim');
-          el.addEventListener('click', () => this._status('Follow suit — must play a matching suit!'));
-          el.addEventListener('touchend', e => { e.preventDefault(); this._status('Follow suit!'); });
+          el.addEventListener('click', () => this._status('Must follow suit!'));
+          el.addEventListener('touchstart', e => { e.preventDefault(); this._status('Must follow suit!'); }, { passive: false });
         }
       }
       zone.appendChild(el);
     });
+  }
+
+  /**
+   * Attach tap + swipe-up + 3-D lift to a playable card.
+   * Tap   (touchstart → touchend, Δy < 12px)  → play
+   * Swipe up (Δy > 28px upward)               → play
+   * Press  (touchstart)                        → lift bubble
+   */
+  _addPlayGesture(el, card, angle) {
+    let startY = 0, startX = 0, lifted = false;
+
+    const doLift = () => {
+      el.classList.remove('snap-back');
+      el.classList.add('lifted');
+      el.style.setProperty('--rot', `${angle}deg`);
+      lifted = true;
+    };
+
+    const doSnap = () => {
+      el.classList.add('snap-back');
+      el.classList.remove('lifted');
+      lifted = false;
+    };
+
+    const doPlay = () => {
+      el.classList.remove('lifted', 'snap-back');
+      this._onCardClick(card);
+    };
+
+    // Mouse (desktop)
+    el.addEventListener('mouseenter', doLift);
+    el.addEventListener('mouseleave', doSnap);
+    el.addEventListener('click', doPlay);
+
+    // Touch
+    el.addEventListener('touchstart', e => {
+      e.preventDefault();
+      startY = e.touches[0].clientY;
+      startX = e.touches[0].clientX;
+      doLift();
+    }, { passive: false });
+
+    el.addEventListener('touchmove', e => {
+      e.preventDefault();
+      // If swiping sideways, cancel lift
+      const dx = Math.abs(e.touches[0].clientX - startX);
+      const dy = startY - e.touches[0].clientY;
+      if (dx > 30 && dx > Math.abs(dy)) doSnap();
+    }, { passive: false });
+
+    el.addEventListener('touchend', e => {
+      e.preventDefault();
+      const dy = startY - e.changedTouches[0].clientY;
+      const dx = Math.abs(e.changedTouches[0].clientX - startX);
+      // Play on tap (small move) OR swipe up
+      if (dy > 28 || (Math.abs(dy) < 12 && dx < 12)) {
+        doPlay();
+      } else {
+        doSnap();
+      }
+    }, { passive: false });
+
+    el.addEventListener('touchcancel', doSnap);
   }
 
   /* --- AI player 2 (top) — horizontal fan of backs --- */

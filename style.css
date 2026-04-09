@@ -310,12 +310,28 @@ html, body {
 .cs  { font-size: 18px; line-height: 1; align-self: center; }
 .cvb { font-size: 14px; line-height: 1; transform: rotate(180deg); align-self: flex-end; }
 
-/* Playable card */
-.card.playable { cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.4), 0 0 0 2px #ffd700; }
-.card.playable:hover,
-.card.playable:active {
-  box-shadow: 0 8px 20px rgba(0,0,0,0.5), 0 0 0 3px #ffd700;
-  z-index: 100 !important;
+/* Playable card — gold outline */
+.card.playable {
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4), 0 0 0 2px #ffd700;
+  transition: transform 0.18s cubic-bezier(.34,1.56,.64,1), box-shadow 0.18s;
+}
+
+/* 3-D bubble lift — triggered by JS on press */
+.card.lifted {
+  transform: rotate(var(--rot,0deg)) translateY(-22px) scale(1.16) !important;
+  box-shadow:
+    0 16px 36px rgba(0,0,0,0.55),
+    0 0 0 3px #ffd700,
+    0 0 24px rgba(255,215,0,0.45),
+    0 4px 0 rgba(0,0,0,0.35) !important;
+  z-index: 300 !important;
+  transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), box-shadow 0.15s !important;
+}
+
+/* Snap back smoothly when lift is removed */
+.card.snap-back {
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
 }
 
 /* Dimmed (can't play) */

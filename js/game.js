@@ -123,7 +123,8 @@ class TenCoatGame {
   }
 
   _sortHands() {
-    const suitRank = { spades: 0, hearts: 1, diamonds: 2, clubs: 3 };
+    // Alternating colour order: ♠black → ♥red → ♣black → ♦red
+    const suitRank = { spades: 0, hearts: 1, clubs: 2, diamonds: 3 };
     for (let i = 0; i < 4; i++) {
       this.hands[i].sort((a, b) => {
         const sd = suitRank[a.suit] - suitRank[b.suit];
