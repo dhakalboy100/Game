@@ -293,10 +293,10 @@ class TenCoatGame {
 
   /* ==========================================================
      AI — CARD SELECTION
-     Simple heuristic strategy:
+     Strategy:
        • Lead: highest non-trump (unless only trump left)
-       • Follow suit: lowest winning card if opponent winning; lowest if partner winning
-       • Can't follow: trump to steal if opponent leading; discard cheapest otherwise
+       • Follow suit: deposit a 10 onto a safe partner win; else lowest card
+       • Void: dump a non-trump 10 if partner is winning; else trump/discard
      ========================================================== */
   aiChooseCard(player) {
     const hand  = this.hands[player];
@@ -314,7 +314,6 @@ class TenCoatGame {
     // Prefer leading high non-trump to establish control
     const nonTrump = hand.filter(c => c.suit !== this.trump);
     const pool     = nonTrump.length > 0 ? nonTrump : hand;
-    // If we hold a 10, lead it only when very strong (Ace or King in that suit as protection)
     return pool.reduce((best, c) => c.value > best.value ? c : best);
   }
 
@@ -323,16 +322,18 @@ class TenCoatGame {
     const partnerWins = this._teamOf(winner.player) === this._teamOf(player);
 
     if (partnerWins) {
-      // Partner is winning — play cheapest card to conserve high cards
+      // Partner is winning — deposit a 10 if the win looks safe, else play cheapest
+      const tens = matching.filter(c => c.isTen);
+      if (tens.length > 0 && this._partnerWinSafe(winner.card, trick)) return tens[0];
       return matching.reduce((lo, c) => c.value < lo.value ? c : lo);
     }
 
     // Opponent winning — try to beat with minimum effort
     const canBeat = matching.filter(c => this._beats(c, winner.card, ledSuit));
     if (canBeat.length > 0) {
-      return canBeat.reduce((lo, c) => c.value < lo.value ? c : lo); // lowest winning card
+      return canBeat.reduce((lo, c) => c.value < lo.value ? c : lo);
     }
-    return matching.reduce((lo, c) => c.value < lo.value ? c : lo);  // can't beat — throw lowest
+    return matching.reduce((lo, c) => c.value < lo.value ? c : lo);
   }
 
   _aiVoid(player, hand, trick, ledSuit) {
@@ -341,20 +342,35 @@ class TenCoatGame {
     const trumpCards  = hand.filter(c => c.suit === this.trump);
     const nonTrump    = hand.filter(c => c.suit !== this.trump);
 
-    if (!partnerWins && trumpCards.length > 0) {
-      // Opponent winning — use lowest trump that can beat the current winner
+    if (partnerWins) {
+      // Dump a non-trump 10 — it can't win the trick anyway, and partner will capture it
+      const dumpTen = nonTrump.filter(c => c.isTen);
+      if (dumpTen.length > 0) return dumpTen[0];
+      const pool = nonTrump.length > 0 ? nonTrump : hand;
+      return pool.reduce((lo, c) => c.value < lo.value ? c : lo);
+    }
+
+    // Opponent winning — use lowest trump that beats current winner
+    if (trumpCards.length > 0) {
       const winTrumps = winner.card.suit === this.trump
         ? trumpCards.filter(c => c.value > winner.card.value)
-        : trumpCards; // any trump beats non-trump
-
+        : trumpCards;
       if (winTrumps.length > 0) {
         return winTrumps.reduce((lo, c) => c.value < lo.value ? c : lo);
       }
     }
 
-    // Partner winning or no useful trump — discard cheapest non-trump, else cheapest trump
     const pool = nonTrump.length > 0 ? nonTrump : hand;
     return pool.reduce((lo, c) => c.value < lo.value ? c : lo);
+  }
+
+  // True when it's safe for the ally to deposit a 10 onto partner's winning trick.
+  // Safe if: we're last to play, partner has an Ace, or partner holds trump Ace/King.
+  _partnerWinSafe(winCard, trick) {
+    if (trick.length === 3) return true;                                    // we're last — guaranteed
+    if (winCard.value === 14) return true;                                  // Ace of any suit
+    if (winCard.suit === this.trump && winCard.value >= 13) return true;    // trump K or A
+    return false;
   }
 }
 
