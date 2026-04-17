@@ -5,31 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#060c14">
   <title>10 Coat</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div id="app">
 
-  <!-- ===== MENU ===== -->
+  <!-- MENU -->
   <div id="menu-screen" class="screen">
     <div class="menu-box">
       <div class="logo">10 Coat</div>
       <p class="tagline">Trick-taking card game</p>
       <div class="rules">
-        <div class="rule-row">👤 <span>You + Robot2 &nbsp;vs&nbsp; Robot1 + Robot3</span></div>
-        <div class="rule-row">🃏 <span>Get 5 cards → choose trump suit</span></div>
-        <div class="rule-row">🎯 <span>Capture the most 10s each round</span></div>
-        <div class="rule-row">🏆 <span>Win 2 of 3 rounds to win!</span></div>
+        <div class="rule-row"><span>You + Robot2 &nbsp;vs&nbsp; Robot1 + Robot3</span></div>
+        <div class="rule-row"><span>Get 5 cards → choose trump suit</span></div>
+        <div class="rule-row"><span>Capture the most 10s each round</span></div>
+        <div class="rule-row"><span>Win 2 of 3 rounds to win</span></div>
       </div>
       <button id="start-btn" class="big-btn">Play Game</button>
     </div>
   </div>
 
-  <!-- ===== GAME ===== -->
+  <!-- GAME -->
   <div id="game-screen" class="screen hidden">
 
-    <!-- Top bar -->
     <div id="topbar">
       <div id="round-label">Round <span id="round-num">1</span>/3</div>
       <div id="team-score">
@@ -38,21 +38,19 @@
         <span class="sc-bot"><b id="wins-b">0</b>&nbsp;R1+R3</span>
       </div>
       <div id="trump-label">Trump:&nbsp;<span id="trump-sym">—</span></div>
-      <button id="tracker-btn" title="Played cards">📋</button>
+      <button id="tracker-btn" title="Played cards">♠</button>
     </div>
 
-    <!-- Card tracker panel (floating, toggled by btn) -->
     <div id="tracker-panel" class="hidden">
       <div class="tr-title">Cards Played</div>
       <div id="tracker-body"></div>
     </div>
 
-    <!-- Table (fills screen between topbar and statusbar) -->
     <div id="table">
 
       <!-- TOP: Robot2 -->
       <div id="zone-top" class="zone">
-        <div class="p-tag ally-tag">🤖 Robot2 <em>(ally)</em></div>
+        <div class="p-tag ally-tag">Robot2 <em>ally</em></div>
         <div class="hand-wrap" id="hw-2"><div class="hand-zone" id="hand-2"></div></div>
       </div>
 
@@ -61,13 +59,13 @@
 
         <!-- LEFT: Robot3 -->
         <div id="zone-left" class="zone">
-          <div class="p-tag">🤖 Robot3</div>
+          <div class="p-tag">Robot3</div>
           <div class="hand-wrap vertical-wrap" id="hw-3">
             <div class="hand-zone" id="hand-3"></div>
           </div>
         </div>
 
-        <!-- CENTER: trick area -->
+        <!-- CENTER -->
         <div id="center">
           <div id="spade-mark">♠</div>
           <div id="trick">
@@ -86,31 +84,31 @@
           <div class="hand-wrap vertical-wrap" id="hw-1">
             <div class="hand-zone" id="hand-1"></div>
           </div>
-          <div class="p-tag">🤖 Robot1</div>
+          <div class="p-tag">Robot1</div>
         </div>
 
-      </div><!-- /middle -->
+      </div>
 
       <!-- BOTTOM: Human -->
       <div id="zone-bot" class="zone">
         <div class="p-tag you-tag">
-          <span>👤 <b>You</b> <em>(ally: Robot2)</em></span>
+          <span><b>You</b> <em style="color:#7ed957;font-style:normal">ally: Robot2</em></span>
           <span id="tens-pill" class="tens-pill hidden">0 tens</span>
         </div>
         <div class="hand-wrap" id="hw-0"><div class="hand-zone" id="hand-0"></div></div>
       </div>
 
-    </div><!-- /table -->
+    </div>
 
-    <!-- Status bar -->
-    <div id="statusbar"><span id="status-txt">—</span></div>
+    <!-- Floating status pill -->
+    <div id="status-pill">—</div>
 
-  </div><!-- /game-screen -->
+  </div>
 
-  <!-- ===== TRUMP MODAL ===== -->
+  <!-- TRUMP MODAL -->
   <div class="overlay hidden" id="trump-modal">
     <div class="modal">
-      <h2>Choose Trump Suit</h2>
+      <h2>Choose Trump</h2>
       <div class="suit-grid">
         <button class="s-btn s-black" data-suit="spades">♠<br><small>Spades</small></button>
         <button class="s-btn s-red"   data-suit="hearts">♥<br><small>Hearts</small></button>
@@ -120,7 +118,7 @@
     </div>
   </div>
 
-  <!-- ===== ROUND RESULT ===== -->
+  <!-- ROUND RESULT -->
   <div class="overlay hidden" id="round-modal">
     <div class="modal">
       <h2 id="r-title">Round Over</h2>
@@ -129,10 +127,10 @@
     </div>
   </div>
 
-  <!-- ===== GAME OVER ===== -->
+  <!-- GAME OVER -->
   <div class="overlay hidden" id="gameover-modal">
     <div class="modal">
-      <h2 id="go-title">Match Over!</h2>
+      <h2 id="go-title">Match Over</h2>
       <div id="go-body"></div>
       <button id="play-again-btn" class="big-btn">Play Again</button>
     </div>

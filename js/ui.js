@@ -1,86 +1,58 @@
-// ============================================================
-//  10 Coat — UI Controller (v2 — mobile redesign)
-//  All card hands use absolute positioning + CSS transforms
-//  for reliable rendering on all screen sizes.
-// ============================================================
-
 'use strict';
 
-/* Card dimensions */
-const CW = 52;  // card width  px
-const CH = 76;  // card height px
+const CW = 62, CH = 90;
 
 class UI {
   constructor() {
     this.game    = null;
-    this.aiDelay = 820;
+    this.aiDelay = 780;
     this._wire();
   }
 
-  /* ==========================================================
-     WIRING
-     ========================================================== */
   _wire() {
-    document.getElementById('start-btn')
-      .addEventListener('click', () => this._newGame());
-    document.getElementById('play-again-btn')
-      .addEventListener('click', () => this._newGame());
-    document.getElementById('next-round-btn')
-      .addEventListener('click', () => this._nextRound());
+    document.getElementById('start-btn')     .addEventListener('click', () => this._newGame());
+    document.getElementById('play-again-btn').addEventListener('click', () => this._newGame());
+    document.getElementById('next-round-btn').addEventListener('click', () => this._nextRound());
     document.querySelectorAll('.s-btn').forEach(b =>
-      b.addEventListener('click', () => this._onTrump(b.dataset.suit))
-    );
-    // Tracker toggle
+      b.addEventListener('click', () => this._onTrump(b.dataset.suit)));
     document.getElementById('tracker-btn')
       .addEventListener('click', () => this._toggleTracker());
   }
 
+  /* ── Tracker ──────────────────────────────────────────── */
   _toggleTracker() {
-    const panel = document.getElementById('tracker-panel');
-    if (panel.classList.contains('hidden')) {
-      panel.classList.remove('hidden');
-      this._updateTracker();
-    } else {
-      panel.classList.add('hidden');
-    }
+    const p = document.getElementById('tracker-panel');
+    if (p.classList.toggle('hidden') === false) this._updateTracker();
   }
 
   _updateTracker() {
-    const body = document.getElementById('tracker-body');
-    if (!body) return;
-
-    // Collect every card played in completed tricks + current trick
     const played = new Set();
     for (const t of this.game.completedTricks)
-      for (const e of t.entries)
-        played.add(`${e.card.suit}-${e.card.value}`);
+      for (const e of t.entries) played.add(`${e.card.suit}-${e.card.value}`);
     for (const e of this.game.currentTrick)
       played.add(`${e.card.suit}-${e.card.value}`);
 
     const suits = [
-      { name: 'spades',   sym: '♠', col: 'black' },
-      { name: 'hearts',   sym: '♥', col: 'red'   },
-      { name: 'clubs',    sym: '♣', col: 'black' },
-      { name: 'diamonds', sym: '♦', col: 'red'   },
+      { name:'spades',   sym:'♠', col:'black' },
+      { name:'hearts',   sym:'♥', col:'red'   },
+      { name:'clubs',    sym:'♣', col:'black' },
+      { name:'diamonds', sym:'♦', col:'red'   },
     ];
     const ORDER = [14,13,12,11,10,9,8,7,6,5,4,3,2];
     const vn = v => ({14:'A',13:'K',12:'Q',11:'J'}[v] || String(v));
 
-    body.innerHTML = suits.map(s => {
-      const chips = ORDER.map(v => {
-        const gone = played.has(`${s.name}-${v}`);
-        return `<span class="tr-chip ${gone ? 'gone' : 'remain ' + s.col}">${vn(v)}</span>`;
-      }).join('');
-      return `<div class="tr-row">
+    document.getElementById('tracker-body').innerHTML = suits.map(s =>
+      `<div class="tr-row">
         <span class="tr-suit-sym ${s.col}">${s.sym}</span>
-        <div class="tr-chips">${chips}</div>
-      </div>`;
-    }).join('');
+        <div class="tr-chips">${ORDER.map(v => {
+          const gone = played.has(`${s.name}-${v}`);
+          return `<span class="tr-chip ${gone ? 'gone' : 'remain ' + s.col}">${vn(v)}</span>`;
+        }).join('')}</div>
+      </div>`
+    ).join('');
   }
 
-  /* ==========================================================
-     GAME LIFECYCLE
-     ========================================================== */
+  /* ── Game lifecycle ───────────────────────────────────── */
   _newGame() {
     this.game = new TenCoatGame();
     this._showScreen('game-screen');
@@ -94,45 +66,36 @@ class UI {
     this._updateHUD();
     this._clearTrick();
     this._hidePill();
-    this._status('Dealing cards…');
+    this._status('Dealing…');
     this._renderAllHands();
     setTimeout(() => this._dealLoop(), 120);
   }
 
-  /* ==========================================================
-     DEAL LOOP
-     ========================================================== */
+  /* ── Deal loop ────────────────────────────────────────── */
   _dealLoop() {
     if (this.game.state === 'TRUMP_DECLARE') {
       this._renderAllHands();
       const d = this.game.trumpDeclarer;
       if (d === 0) {
         this._showOv('trump-modal');
-        this._status('Pick the trump suit!');
+        this._status('Choose the trump suit');
       } else {
         this._status(`${this.game.playerNames[d]} is choosing trump…`);
         setTimeout(() => {
-          const suit = this.game.aiChooseTrump(d);
-          this.game.declareTrump(suit);
+          this.game.declareTrump(this.game.aiChooseTrump(d));
           this._updateHUD();
-          this._status(`${this.game.playerNames[d]} chose trump: ${SUIT_SYMBOLS[suit]}`);
+          this._status(`${this.game.playerNames[d]} chose trump: ${SUIT_SYMBOLS[this.game.trump]}`);
           setTimeout(() => this._dealLoop(), 400);
         }, 700);
       }
       return;
     }
-
     if (this.game.isDealingComplete()) {
       this._renderAllHands();
-      this._status('Cards dealt — starting play…');
-      setTimeout(() => {
-        this.game.startPlaying();
-        this._renderAllHands();
-        this._turn();
-      }, 700);
+      this._status('Starting play…');
+      setTimeout(() => { this.game.startPlaying(); this._renderAllHands(); this._turn(); }, 700);
       return;
     }
-
     this.game.dealOneCard();
     const dealt = this.game.hands.reduce((n, h) => n + h.length, 0);
     if (dealt % 6 === 0) this._renderAllHands();
@@ -143,20 +106,17 @@ class UI {
     this._hideOv('trump-modal');
     this.game.declareTrump(suit);
     this._updateHUD();
-    this._status(`You chose trump: ${SUIT_SYMBOLS[suit]}`);
+    this._status(`Trump: ${SUIT_SYMBOLS[suit]}`);
     setTimeout(() => this._dealLoop(), 300);
   }
 
-  /* ==========================================================
-     TURN MANAGEMENT
-     ========================================================== */
+  /* ── Turn management ──────────────────────────────────── */
   _turn() {
     if (this.game.state !== 'PLAYING') return;
     const p = this.game.currentPlayer;
     this._highlight(p);
-
     if (p === 0) {
-      this._status('Your turn — tap a card to play');
+      this._status('Your turn — tap a card');
       this._renderHumanHand(true);
     } else {
       this._renderHumanHand(false);
@@ -167,24 +127,18 @@ class UI {
 
   _play(player, card) {
     const result = this.game.playCard(player, card);
-
-    // Refresh the player's hand display
     if (player === 0) this._renderHumanHand(false);
     else              this._renderAIHand(player);
-
-    // Show the played card in the center
     this._showTrickCard(player, card);
 
     if (!result || result.waiting) { this._turn(); return; }
 
-    // Trick complete — refresh tracker if open
-    const trackerPanel = document.getElementById('tracker-panel');
-    if (trackerPanel && !trackerPanel.classList.contains('hidden'))
-      this._updateTracker();
+    const panel = document.getElementById('tracker-panel');
+    if (!panel.classList.contains('hidden')) this._updateTracker();
 
     const msg = result.tens > 0
-      ? `${result.winnerName} wins the trick — ${result.tens} ten${result.tens > 1 ? 's' : ''} captured! 🎯`
-      : `${result.winnerName} wins the trick.`;
+      ? `${result.winnerName} wins — ${result.tens} ten${result.tens > 1 ? 's' : ''} captured`
+      : `${result.winnerName} wins the trick`;
     this._status(msg);
     this._updatePill();
 
@@ -195,37 +149,29 @@ class UI {
     }
   }
 
-  /* ==========================================================
-     RESULTS
-     ========================================================== */
+  /* ── Results ──────────────────────────────────────────── */
   _roundResult() {
     const r       = this.game.getRoundResult();
     const [tA,tB] = [r.tensTeamA, r.tensTeamB];
     const [wA,wB] = this.game.teamWins;
-
     let headline, cls, sub = '';
+
     if (r.roundWinner === 0) {
-      headline = '🎉 Your team wins the round!';
-      cls = 'res-win';
-      if (r.trumpTiebreak) sub = `<br><small style="color:#aaa">2–2 tie broken by trump 10 ${SUIT_SYMBOLS[this.game.trump]}</small>`;
+      headline = 'Your team wins the round!'; cls = 'res-win';
+      if (r.trumpTiebreak) sub = `<br><small style="color:rgba(255,255,255,.4)">2–2 tie broken by trump 10 ${SUIT_SYMBOLS[this.game.trump]}</small>`;
     } else if (r.roundWinner === 1) {
-      headline = '😔 Robot team wins the round.';
-      cls = 'res-lose';
-      if (r.trumpTiebreak) sub = `<br><small style="color:#aaa">2–2 tie broken by trump 10 ${SUIT_SYMBOLS[this.game.trump]}</small>`;
+      headline = 'Robot team wins the round.'; cls = 'res-lose';
+      if (r.trumpTiebreak) sub = `<br><small style="color:rgba(255,255,255,.4)">2–2 tie broken by trump 10 ${SUIT_SYMBOLS[this.game.trump]}</small>`;
     } else {
-      headline = "🤝 Tie — no point.";
-      cls = 'res-tie';
+      headline = 'Tie — no point awarded.'; cls = 'res-tie';
     }
 
-    document.getElementById('r-title').textContent =
-      `Round ${this.game.currentRound} / ${this.game.maxRounds}`;
-
-    document.getElementById('r-body').innerHTML = `
-      <div class="${cls}">${headline}${sub}</div><br>
-      10s this round:<br>
-      👤 Your team: <b>${tA}</b> &nbsp;|&nbsp; 🤖 Robots: <b>${tB}</b><br><br>
-      Match score: <b>${wA} – ${wB}</b>
-    `;
+    document.getElementById('r-title').textContent = `Round ${this.game.currentRound} / ${this.game.maxRounds}`;
+    document.getElementById('r-body').innerHTML =
+      `<div class="${cls}">${headline}${sub}</div><br>
+       10s this round:<br>
+       Your team: <b>${tA}</b> &nbsp;|&nbsp; Robots: <b>${tB}</b><br><br>
+       Match score: <b>${wA} – ${wB}</b>`;
 
     const over = this.game.isMatchOver();
     document.getElementById('next-round-btn').style.display = over ? 'none' : '';
@@ -236,55 +182,46 @@ class UI {
   _matchResult() {
     const w       = this.game.getMatchWinner();
     const [wA,wB] = this.game.teamWins;
-    let headline, cls;
-    if      (w === 0) { headline = '🏆 Your team wins the match!'; cls = 'res-win'; }
-    else if (w === 1) { headline = '🤖 Robots win. Better luck next time!'; cls = 'res-lose'; }
-    else              { headline = "🤝 It's a draw!"; cls = 'res-tie'; }
+    const [headline, cls] = w === 0
+      ? ['Your team wins the match!',        'res-win' ]
+      : w === 1
+      ? ['Robots win. Better luck next time!','res-lose']
+      : ["It's a draw!",                     'res-tie' ];
 
-    document.getElementById('go-title').textContent = 'Match Over!';
     document.getElementById('go-body').innerHTML =
       `<div class="${cls}">${headline}</div><br>Final: <b>${wA} – ${wB}</b>`;
     this._showOv('gameover-modal');
   }
 
-  /* ==========================================================
-     CARD RENDERING  (absolute-positioned, arc-fanned)
-     ========================================================== */
+  /* ── Card rendering ───────────────────────────────────── */
   _renderAllHands() {
     this._renderHumanHand(false);
-    this._renderAIHand(1);
-    this._renderAIHand(2);
-    this._renderAIHand(3);
+    [1, 2, 3].forEach(p => this._renderAIHand(p));
   }
 
-  /* --- Human: face-up arc fan with swipe + 3-D lift --- */
   _renderHumanHand(clickable) {
-    const zone = document.getElementById('hand-0');
+    const zone  = document.getElementById('hand-0');
     zone.innerHTML = '';
-
     const cards = this.game.hands[0];
     const n     = cards.length;
-    if (n === 0) { zone.style.width = '0'; zone.style.height = '0'; return; }
+    if (!n) { zone.style.width = zone.style.height = '0'; return; }
 
     const valid  = clickable ? this.game.getValidCards(0) : [];
     const avail  = Math.min(window.innerWidth - 16, window.innerWidth * 0.97);
-    // Wider spacing: target 46px gap, shrink only if necessary
-    const gap    = n > 1 ? Math.min(46, (avail - CW) / (n - 1)) : 0;
+    const gap    = n > 1 ? Math.min(52, (avail - CW) / (n - 1)) : 0;
     const totalW = (n - 1) * gap + CW;
-    const totalH = CH + 32;
 
     zone.style.width  = totalW + 'px';
-    zone.style.height = totalH + 'px';
+    zone.style.height = (CH + 36) + 'px';
 
     cards.forEach((card, i) => {
       const t      = n > 1 ? i / (n - 1) : 0.5;
-      const angle  = (t - 0.5) * 26;          // –13° … +13°
-      const dip    = Math.pow(t - 0.5, 2) * 22;
-      const bottom = 32 - dip;
+      const angle  = (t - 0.5) * 30;
+      const dip    = Math.pow(t - 0.5, 2) * 26;
+      const el     = this._cardEl(card);
 
-      const el = this._cardEl(card);
       el.style.left            = (i * gap) + 'px';
-      el.style.bottom          = bottom + 'px';
+      el.style.bottom          = (36 - dip) + 'px';
       el.style.top             = 'auto';
       el.style.setProperty('--rot', `${angle}deg`);
       el.style.transform       = `rotate(${angle}deg)`;
@@ -298,42 +235,27 @@ class UI {
           this._addPlayGesture(el, card, angle);
         } else {
           el.classList.add('dim');
-          el.addEventListener('click', () => this._status('Must follow suit!'));
-          el.addEventListener('touchstart', e => { e.preventDefault(); this._status('Must follow suit!'); }, { passive: false });
+          const deny = () => this._status('Must follow suit!');
+          el.addEventListener('click', deny);
+          el.addEventListener('touchstart', e => { e.preventDefault(); deny(); }, { passive: false });
         }
       }
       zone.appendChild(el);
     });
   }
 
-  /**
-   * Attach tap + swipe-up + 3-D lift to a playable card.
-   * Tap   (touchstart → touchend, Δy < 12px)  → play
-   * Swipe up (Δy > 28px upward)               → play
-   * Press  (touchstart)                        → lift bubble
-   */
   _addPlayGesture(el, card, angle) {
-    let startY = 0, startX = 0, lifted = false;
+    let startX = 0, startY = 0;
 
     const doLift = () => {
       el.classList.remove('snap-back');
       el.classList.add('lifted');
       el.style.setProperty('--rot', `${angle}deg`);
-      lifted = true;
     };
+    const doSnap = () => { el.classList.add('snap-back'); el.classList.remove('lifted'); };
+    const doPlay = () => { el.classList.remove('lifted', 'snap-back'); this._onCardClick(card); };
 
-    const doSnap = () => {
-      el.classList.add('snap-back');
-      el.classList.remove('lifted');
-      lifted = false;
-    };
-
-    const doPlay = () => {
-      el.classList.remove('lifted', 'snap-back');
-      this._onCardClick(card);
-    };
-
-    // Mouse (desktop)
+    // Mouse
     el.addEventListener('mouseenter', doLift);
     el.addEventListener('mouseleave', doSnap);
     el.addEventListener('click', doPlay);
@@ -341,14 +263,12 @@ class UI {
     // Touch
     el.addEventListener('touchstart', e => {
       e.preventDefault();
-      startY = e.touches[0].clientY;
-      startX = e.touches[0].clientX;
+      ({ clientX: startX, clientY: startY } = e.touches[0]);
       doLift();
     }, { passive: false });
 
     el.addEventListener('touchmove', e => {
       e.preventDefault();
-      // If swiping sideways, cancel lift
       const dx = Math.abs(e.touches[0].clientX - startX);
       const dy = startY - e.touches[0].clientY;
       if (dx > 30 && dx > Math.abs(dy)) doSnap();
@@ -358,66 +278,50 @@ class UI {
       e.preventDefault();
       const dy = startY - e.changedTouches[0].clientY;
       const dx = Math.abs(e.changedTouches[0].clientX - startX);
-      // Play on tap (small move) OR swipe up
-      if (dy > 28 || (Math.abs(dy) < 12 && dx < 12)) {
-        doPlay();
-      } else {
-        doSnap();
-      }
+      (dy > 28 || (Math.abs(dy) < 12 && dx < 12)) ? doPlay() : doSnap();
     }, { passive: false });
 
     el.addEventListener('touchcancel', doSnap);
   }
 
-  /* --- AI player 2 (top) — horizontal fan of backs --- */
-  /* --- AI player 1 & 3 (sides) — vertical fan of backs --- */
   _renderAIHand(player) {
     const zone = document.getElementById(`hand-${player}`);
     zone.innerHTML = '';
-
     const n = this.game.hands[player].length;
-    if (n === 0) { zone.style.width = '0'; zone.style.height = '0'; return; }
+    if (!n) { zone.style.width = zone.style.height = '0'; return; }
 
     if (player === 2) {
-      /* top player — horizontal overlap */
-      const gap    = Math.min(30, Math.max(10, (window.innerWidth * 0.5 - CW) / Math.max(n - 1, 1)));
+      const gap    = Math.min(28, Math.max(10, (window.innerWidth * 0.5 - CW) / Math.max(n - 1, 1)));
       const totalW = (n - 1) * gap + CW;
-      zone.style.width  = totalW + 'px';
+      zone.style.width = totalW + 'px';
       zone.style.height = CH + 'px';
-
       for (let i = 0; i < n; i++) {
         const el = this._backEl();
-        el.style.left   = (i * gap) + 'px';
-        el.style.top    = '0';
-        el.style.zIndex = i + 1;
+        el.style.cssText = `left:${i * gap}px;top:0;z-index:${i + 1}`;
         zone.appendChild(el);
       }
     } else {
-      /* side players — vertical overlap */
       const avail  = document.getElementById('middle').offsetHeight || 200;
-      const gap    = Math.min(22, Math.max(8, (avail * 0.7 - CH) / Math.max(n - 1, 1)));
+      const gap    = Math.min(20, Math.max(8, (avail * 0.7 - CH) / Math.max(n - 1, 1)));
       const totalH = (n - 1) * gap + CH;
-      zone.style.width  = CW + 'px';
+      zone.style.width = CW + 'px';
       zone.style.height = totalH + 'px';
-
       for (let i = 0; i < n; i++) {
         const el = this._backEl();
-        el.style.top    = (i * gap) + 'px';
-        el.style.left   = '0';
-        el.style.zIndex = i + 1;
+        el.style.cssText = `top:${i * gap}px;left:0;z-index:${i + 1}`;
         zone.appendChild(el);
       }
     }
   }
 
-  /* --- Card element constructors --- */
+  /* ── Card element builders ────────────────────────────── */
   _cardEl(card) {
     const el = document.createElement('div');
     el.className = `card ${card.color}${card.isTen ? ' ten' : ''}`;
     el.innerHTML =
-      `<span class="cv">${card.display}</span>` +
+      `<b class="pip top">${card.display}<small>${card.symbol}</small></b>` +
       `<span class="cs">${card.symbol}</span>` +
-      `<span class="cvb">${card.display}</span>`;
+      `<b class="pip bot">${card.display}<small>${card.symbol}</small></b>`;
     return el;
   }
 
@@ -427,17 +331,14 @@ class UI {
     return el;
   }
 
-  /* ==========================================================
-     TRICK AREA
-     ========================================================== */
+  /* ── Trick area ───────────────────────────────────────── */
   _showTrickCard(player, card) {
     const spot = document.getElementById(`played-${player}`);
     if (!spot) return;
     spot.innerHTML = '';
     const el = this._cardEl(card);
-    // Static position inside the spot
     el.style.position = 'static';
-    el.classList.add('deal-in');
+    el.classList.add('fly-in');
     spot.appendChild(el);
   }
 
@@ -448,69 +349,51 @@ class UI {
     });
   }
 
-  /* ==========================================================
-     HUD / PILLS
-     ========================================================== */
+  /* ── HUD ──────────────────────────────────────────────── */
   _updateHUD() {
     const g = this.game;
     document.getElementById('round-num').textContent = g.currentRound || '—';
-    document.getElementById('wins-a').textContent = g.teamWins[0];
-    document.getElementById('wins-b').textContent = g.teamWins[1];
-
+    document.getElementById('wins-a').textContent    = g.teamWins[0];
+    document.getElementById('wins-b').textContent    = g.teamWins[1];
     const span = document.getElementById('trump-sym');
     if (g.trump) {
       span.textContent = SUIT_SYMBOLS[g.trump];
-      span.style.color = SUIT_COLORS[g.trump] === 'red' ? '#ff5252' : '#fff';
+      span.style.color = SUIT_COLORS[g.trump] === 'red' ? '#ff453a' : '#fff';
     } else {
-      span.textContent = '—';
-      span.style.color = '';
+      span.textContent = '—'; span.style.color = '';
     }
   }
 
   _updatePill() {
-    const [tA] = this.game.tensWon;
-    const pill = document.getElementById('tens-pill');
-    if (!pill) return;
+    const [tA]  = this.game.tensWon;
+    const pill  = document.getElementById('tens-pill');
     pill.textContent = `${tA} ten${tA !== 1 ? 's' : ''}`;
-    pill.classList.remove('hidden');
-    if (tA === 0) pill.classList.add('hidden');
+    pill.classList.toggle('hidden', tA === 0);
   }
 
-  _hidePill() {
-    const pill = document.getElementById('tens-pill');
-    if (pill) pill.classList.add('hidden');
-  }
+  _hidePill() { document.getElementById('tens-pill').classList.add('hidden'); }
 
-  /* ==========================================================
-     PLAYER HIGHLIGHT
-     ========================================================== */
+  /* ── Player highlight ─────────────────────────────────── */
   _highlight(p) {
     const map = { 0:'zone-bot', 1:'zone-right', 2:'zone-top', 3:'zone-left' };
     document.querySelectorAll('.zone').forEach(z => z.classList.remove('active'));
-    const z = document.getElementById(map[p]);
-    if (z) z.classList.add('active');
+    document.getElementById(map[p])?.classList.add('active');
   }
 
-  /* ==========================================================
-     HUMAN CARD CLICK
-     ========================================================== */
+  /* ── Card click ───────────────────────────────────────── */
   _onCardClick(card) {
     if (this.game.state !== 'PLAYING' || this.game.currentPlayer !== 0) return;
-    this._renderHumanHand(false); // lock clicks immediately
+    this._renderHumanHand(false);
     this._play(0, card);
   }
 
-  /* ==========================================================
-     STATUS
-     ========================================================== */
+  /* ── Status pill ──────────────────────────────────────── */
   _status(msg) {
-    const el = document.getElementById('status-txt');
+    const el = document.getElementById('status-pill');
     if (el) el.textContent = msg;
   }
 
-  /* ==========================================================
-     SCREEN / OVERLAY HELPERS
-     ========================================================== */
+  /* ── Screen / overlay helpers ─────────────────────────── */
   _showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
     document.getElementById(id).classList.remove('hidden');
