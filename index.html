@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>10 Coat</title>
+  <title>Das Coat</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,8 +14,8 @@
   <!-- ===== MENU ===== -->
   <div id="menu-screen" class="screen">
     <div class="menu-box">
-      <div class="logo">10 Coat</div>
-      <p class="tagline">Trick-taking card game</p>
+      <div class="logo">Das Coat</div>
+      <p class="tagline">Nepali Trick-Taking Card Game</p>
       <div class="rules">
         <div class="rule-row">👤 <span>You + Robot2 &nbsp;vs&nbsp; Robot1 + Robot3</span></div>
         <div class="rule-row">🃏 <span>Get 5 cards → choose trump suit</span></div>
@@ -39,12 +39,20 @@
       </div>
       <div id="trump-label">Trump:&nbsp;<span id="trump-sym">—</span></div>
       <button id="tracker-btn" title="Played cards">📋</button>
+      <button id="settings-btn" title="Settings">⚙️</button>
     </div>
 
     <!-- Card tracker panel (floating, toggled by btn) -->
     <div id="tracker-panel" class="hidden">
       <div class="tr-title">Cards Played</div>
       <div id="tracker-body"></div>
+    </div>
+
+    <!-- Dealer strip -->
+    <div id="zone-dealer">
+      <div class="dealer-avatar">🎩</div>
+      <div id="dealer-deck"></div>
+      <span class="dealer-label">Dealer: <b id="dealer-name">—</b></span>
     </div>
 
     <!-- Table (fills screen between topbar and statusbar) -->
@@ -111,6 +119,7 @@
   <div class="overlay hidden" id="trump-modal">
     <div class="modal">
       <h2>Choose Trump Suit</h2>
+      <p class="hint" id="trump-hint"></p>
       <div class="suit-grid">
         <button class="s-btn s-black" data-suit="spades">♠<br><small>Spades</small></button>
         <button class="s-btn s-red"   data-suit="hearts">♥<br><small>Hearts</small></button>
@@ -138,7 +147,34 @@
     </div>
   </div>
 
+  <!-- ===== SETTINGS ===== -->
+  <div class="overlay hidden" id="settings-modal">
+    <div class="modal">
+      <h2>Settings</h2>
+      <div class="setting-row">
+        <label>Game Speed</label>
+        <div class="seg">
+          <button class="seg-btn" data-speed="slow">Slow</button>
+          <button class="seg-btn" data-speed="normal">Normal</button>
+          <button class="seg-btn" data-speed="fast">Fast</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <label>Sound FX</label>
+        <button id="tog-sfx" class="toggle">On</button>
+      </div>
+      <div class="setting-row">
+        <label>Music</label>
+        <button id="tog-music" class="toggle">On</button>
+      </div>
+      <button id="close-settings" class="big-btn">Close</button>
+    </div>
+  </div>
+
 </div>
+<script src="https://cdn.jsdelivr.net/npm/howler@2.2.4/dist/howler.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<script src="js/audio.js"></script>
 <script src="js/game.js"></script>
 <script src="js/ui.js"></script>
 </body>
