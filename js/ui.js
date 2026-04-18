@@ -1,5 +1,5 @@
 // ============================================================
-//  10 Coat — UI Controller (v2 — mobile redesign)
+//  Das Coat — UI Controller (v2 — mobile redesign)
 //  All card hands use absolute positioning + CSS transforms
 //  for reliable rendering on all screen sizes.
 // ============================================================
@@ -10,30 +10,77 @@
 const CW = 52;  // card width  px
 const CH = 76;  // card height px
 
+const SPEED_PRESETS = {
+  slow:   { ai: 1200, trickPause: 2000, deal: 26 },
+  normal: { ai: 820,  trickPause: 1600, deal: 16 },
+  fast:   { ai: 420,  trickPause: 900,  deal: 8 },
+};
+
 class UI {
   constructor() {
-    this.game    = null;
-    this.aiDelay = 820;
+    this.game = null;
+    const savedSpeed = localStorage.getItem('dascoat.speed') || 'normal';
+    this.speed = SPEED_PRESETS[savedSpeed] || SPEED_PRESETS.normal;
+    this.speedKey = savedSpeed in SPEED_PRESETS ? savedSpeed : 'normal';
+    this.aiDelay = this.speed.ai; // kept for legacy refs
     this._wire();
+    this._initSettingsUI();
   }
 
   /* ==========================================================
      WIRING
      ========================================================== */
   _wire() {
-    document.getElementById('start-btn')
-      .addEventListener('click', () => this._newGame());
-    document.getElementById('play-again-btn')
-      .addEventListener('click', () => this._newGame());
-    document.getElementById('next-round-btn')
-      .addEventListener('click', () => this._nextRound());
+    const click = (id, fn) => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('click', () => { this._sfx('button'); fn(); });
+    };
+    click('start-btn',       () => this._newGame());
+    click('play-again-btn',  () => this._newGame());
+    click('next-round-btn',  () => this._nextRound());
+    click('tracker-btn',     () => this._toggleTracker());
+    click('settings-btn',    () => this._showOv('settings-modal'));
+    click('close-settings',  () => this._hideOv('settings-modal'));
+
     document.querySelectorAll('.s-btn').forEach(b =>
-      b.addEventListener('click', () => this._onTrump(b.dataset.suit))
+      b.addEventListener('click', () => { this._sfx('button'); this._onTrump(b.dataset.suit); })
     );
-    // Tracker toggle
-    document.getElementById('tracker-btn')
-      .addEventListener('click', () => this._toggleTracker());
   }
+
+  _initSettingsUI() {
+    // Speed segmented control
+    document.querySelectorAll('.seg-btn').forEach(b => {
+      if (b.dataset.speed === this.speedKey) b.classList.add('on');
+      b.addEventListener('click', () => {
+        this._sfx('button');
+        this.speedKey = b.dataset.speed;
+        this.speed = SPEED_PRESETS[this.speedKey];
+        this.aiDelay = this.speed.ai;
+        localStorage.setItem('dascoat.speed', this.speedKey);
+        document.querySelectorAll('.seg-btn').forEach(x => x.classList.toggle('on', x === b));
+      });
+    });
+
+    const bindToggle = (id, initial, onChange) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const render = v => { el.textContent = v ? 'On' : 'Off'; el.classList.toggle('off', !v); };
+      render(initial);
+      el.addEventListener('click', () => {
+        this._sfx('button');
+        const next = el.textContent !== 'On';
+        render(next);
+        onChange(next);
+      });
+    };
+    const A = window.DasAudio;
+    if (A) {
+      bindToggle('tog-sfx',   A.sfxOn,   v => A.setSfx(v));
+      bindToggle('tog-music', A.musicOn, v => A.setMusic(v));
+    }
+  }
+
+  _sfx(key) { if (window.DasAudio) window.DasAudio.play(key); }
 
   _toggleTracker() {
     const panel = document.getElementById('tracker-panel');
@@ -82,7 +129,7 @@ class UI {
      GAME LIFECYCLE
      ========================================================== */
   _newGame() {
-    this.game = new TenCoatGame();
+    this.game = new DasCoatGame();
     this._showScreen('game-screen');
     this._nextRound();
   }
@@ -92,11 +139,18 @@ class UI {
     this._hideOv('gameover-modal');
     this.game.initRound();
     this._updateHUD();
+    this._updateDealer();
     this._clearTrick();
     this._hidePill();
-    this._status('Dealing cards…');
+    this._status('Shuffling the deck…');
     this._renderAllHands();
-    setTimeout(() => this._dealLoop(), 120);
+    this._sfx('shuffle');
+    setTimeout(() => { this._status('Dealing cards…'); this._dealLoop(); }, 550);
+  }
+
+  _updateDealer() {
+    const el = document.getElementById('dealer-name');
+    if (el && this.game) el.textContent = this.game.playerNames[this.game.dealer];
   }
 
   /* ==========================================================
@@ -106,7 +160,14 @@ class UI {
     if (this.game.state === 'TRUMP_DECLARE') {
       this._renderAllHands();
       const d = this.game.trumpDeclarer;
+      this._sfx('flip');
       if (d === 0) {
+        const suggested = this.game.aiChooseTrump(0);
+        const hint = document.getElementById('trump-hint');
+        if (hint) hint.innerHTML = `Suggested: <b>${SUIT_SYMBOLS[suggested]}</b>`;
+        document.querySelectorAll('.s-btn').forEach(b =>
+          b.classList.toggle('suggested', b.dataset.suit === suggested)
+        );
         this._showOv('trump-modal');
         this._status('Pick the trump suit!');
       } else {
@@ -116,8 +177,8 @@ class UI {
           this.game.declareTrump(suit);
           this._updateHUD();
           this._status(`${this.game.playerNames[d]} chose trump: ${SUIT_SYMBOLS[suit]}`);
-          setTimeout(() => this._dealLoop(), 400);
-        }, 700);
+          setTimeout(() => this._dealLoop(), Math.max(200, this.speed.ai * 0.5));
+        }, this.speed.ai);
       }
       return;
     }
@@ -135,14 +196,15 @@ class UI {
 
     this.game.dealOneCard();
     const dealt = this.game.hands.reduce((n, h) => n + h.length, 0);
-    if (dealt % 6 === 0) this._renderAllHands();
-    setTimeout(() => this._dealLoop(), 16);
+    if (dealt % 4 === 0) { this._renderAllHands(); this._sfx('deal'); }
+    setTimeout(() => this._dealLoop(), this.speed.deal);
   }
 
   _onTrump(suit) {
     this._hideOv('trump-modal');
     this.game.declareTrump(suit);
     this._updateHUD();
+    this._sfx('flip');
     this._status(`You chose trump: ${SUIT_SYMBOLS[suit]}`);
     setTimeout(() => this._dealLoop(), 300);
   }
@@ -161,7 +223,7 @@ class UI {
     } else {
       this._renderHumanHand(false);
       this._status(`${this.game.playerNames[p]} is thinking…`);
-      setTimeout(() => this._play(p, this.game.aiChooseCard(p)), this.aiDelay);
+      setTimeout(() => this._play(p, this.game.aiChooseCard(p)), this.speed.ai);
     }
   }
 
@@ -174,6 +236,7 @@ class UI {
 
     // Show the played card in the center
     this._showTrickCard(player, card);
+    this._sfx('play');
 
     if (!result || result.waiting) { this._turn(); return; }
 
@@ -182,6 +245,13 @@ class UI {
     if (trackerPanel && !trackerPanel.classList.contains('hidden'))
       this._updateTracker();
 
+    const winTeam = result.trickWinner % 2; // team 0 = you+R2, team 1 = robots
+    if (result.tens > 0)       this._sfx('ten_capture');
+    else if (winTeam === 0)    this._sfx('trick_win');
+    else                       this._sfx('trick_lose');
+
+    this._flashTrickWinner(result.trickWinner, result.tens > 0);
+
     const msg = result.tens > 0
       ? `${result.winnerName} wins the trick — ${result.tens} ten${result.tens > 1 ? 's' : ''} captured! 🎯`
       : `${result.winnerName} wins the trick.`;
@@ -189,10 +259,18 @@ class UI {
     this._updatePill();
 
     if (result.roundOver) {
-      setTimeout(() => this._roundResult(), 1600);
+      setTimeout(() => this._roundResult(), this.speed.trickPause);
     } else {
-      setTimeout(() => { this._clearTrick(); this._turn(); }, 1600);
+      setTimeout(() => { this._clearTrick(); this._turn(); }, this.speed.trickPause);
     }
+  }
+
+  _flashTrickWinner(player, goldBurst) {
+    const map = { 0:'zone-bot', 1:'zone-right', 2:'zone-top', 3:'zone-left' };
+    const z = document.getElementById(map[player]);
+    if (!z) return;
+    z.classList.add(goldBurst ? 'flash-gold' : 'flash-win');
+    setTimeout(() => z.classList.remove('flash-gold', 'flash-win'), 900);
   }
 
   /* ==========================================================
@@ -204,14 +282,21 @@ class UI {
     const [wA,wB] = this.game.teamWins;
 
     let headline, cls, sub = '';
+    const tieNote =
+      r.trumpTiebreak     ? `<br><small style="color:#aaa">Tie broken by trump 10 ${SUIT_SYMBOLS[this.game.trump]}</small>` :
+      r.lastTrickTiebreak ? `<br><small style="color:#aaa">Tie broken by last-trick winner</small>` : '';
+
     if (r.roundWinner === 0) {
       headline = '🎉 Your team wins the round!';
       cls = 'res-win';
-      if (r.trumpTiebreak) sub = `<br><small style="color:#aaa">2–2 tie broken by trump 10 ${SUIT_SYMBOLS[this.game.trump]}</small>`;
+      sub = tieNote;
+      this._sfx('round_win');
+      this._confettiRound();
     } else if (r.roundWinner === 1) {
       headline = '😔 Robot team wins the round.';
       cls = 'res-lose';
-      if (r.trumpTiebreak) sub = `<br><small style="color:#aaa">2–2 tie broken by trump 10 ${SUIT_SYMBOLS[this.game.trump]}</small>`;
+      sub = tieNote;
+      this._sfx('round_lose');
     } else {
       headline = "🤝 Tie — no point.";
       cls = 'res-tie';
@@ -237,14 +322,30 @@ class UI {
     const w       = this.game.getMatchWinner();
     const [wA,wB] = this.game.teamWins;
     let headline, cls;
-    if      (w === 0) { headline = '🏆 Your team wins the match!'; cls = 'res-win'; }
-    else if (w === 1) { headline = '🤖 Robots win. Better luck next time!'; cls = 'res-lose'; }
+    if      (w === 0) { headline = '🏆 Your team wins the match!'; cls = 'res-win';  this._sfx('round_win');  this._confettiMatch(); }
+    else if (w === 1) { headline = '🤖 Robots win. Better luck next time!'; cls = 'res-lose'; this._sfx('round_lose'); }
     else              { headline = "🤝 It's a draw!"; cls = 'res-tie'; }
 
-    document.getElementById('go-title').textContent = 'Match Over!';
+    document.getElementById('go-title').textContent =
+      w === 0 ? 'Das Coat Master!' : 'Match Over';
     document.getElementById('go-body').innerHTML =
       `<div class="${cls}">${headline}</div><br>Final: <b>${wA} – ${wB}</b>`;
     this._showOv('gameover-modal');
+  }
+
+  _confettiRound() {
+    if (typeof confetti !== 'function') return;
+    confetti({ particleCount: 80, spread: 65, origin: { y: 0.6 }, colors: ['#ffd700','#ffb300','#fff8cc'] });
+  }
+
+  _confettiMatch() {
+    if (typeof confetti !== 'function') return;
+    const colors = ['#ffd700','#ff5252','#64b5f6','#81c784','#fff'];
+    confetti({ particleCount: 140, spread: 70, origin: { x: 0.15, y: 0.8 }, colors });
+    confetti({ particleCount: 140, spread: 70, origin: { x: 0.85, y: 0.8 }, colors });
+    setTimeout(() => {
+      confetti({ particleCount: 100, spread: 100, startVelocity: 40, origin: { y: 0.3 }, colors });
+    }, 400);
   }
 
   /* ==========================================================
@@ -298,8 +399,14 @@ class UI {
           this._addPlayGesture(el, card, angle);
         } else {
           el.classList.add('dim');
-          el.addEventListener('click', () => this._status('Must follow suit!'));
-          el.addEventListener('touchstart', e => { e.preventDefault(); this._status('Must follow suit!'); }, { passive: false });
+          const reject = () => {
+            this._status('Must follow suit!');
+            el.classList.remove('shake');
+            void el.offsetWidth; // restart animation
+            el.classList.add('shake');
+          };
+          el.addEventListener('click', reject);
+          el.addEventListener('touchstart', e => { e.preventDefault(); reject(); }, { passive: false });
         }
       }
       zone.appendChild(el);
