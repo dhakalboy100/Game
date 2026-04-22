@@ -1,5 +1,5 @@
 // ============================================================
-//  10 Coat — Game Logic
+//  Das Coat — Game Logic
 //  Rules:
 //    • 4 players, 2 teams: [You(0) + Robot2(2)]  vs  [Robot1(1) + Robot3(3)]
 //    • Deal clockwise one card at a time; first player to receive 5 cards
@@ -32,7 +32,7 @@ class Card {
 }
 
 /* ---- Main game class ---- */
-class TenCoatGame {
+class DasCoatGame {
   constructor() {
     // Persistent across rounds
     this.playerNames = ['You', 'Robot1', 'Robot2', 'Robot3'];
@@ -40,6 +40,7 @@ class TenCoatGame {
     this.teamWins    = [0, 0];
     this.currentRound = 0;
     this.maxRounds    = 3;
+    this.dealer       = Math.floor(Math.random() * 4); // rotates each round
     this.state        = 'IDLE'; // IDLE | DEALING | TRUMP_DECLARE | PLAYING | ROUND_OVER | GAME_OVER
   }
 
@@ -48,6 +49,7 @@ class TenCoatGame {
      ========================================================== */
   initRound() {
     this.currentRound++;
+    if (this.currentRound > 1) this.dealer = (this.dealer + 1) % 4;
     this.deck            = this._makeDeck();
     this.hands           = [[], [], [], []];  // hands[playerIdx] = Card[]
     this.currentTrick    = [];               // { player, card }[]
@@ -55,6 +57,7 @@ class TenCoatGame {
     this.tricksWon       = [0, 0, 0, 0];
     this.tensWon         = [0, 0];           // per team
     this.trumpTenTeam    = -1;               // which team captured the trump-suit 10
+    this.lastTrickWinner = -1;               // fallback tiebreaker when zero tens captured
     this.trump           = null;
     this.trumpDeclared   = false;
     this.trumpDeclarer   = -1;
@@ -190,9 +193,10 @@ class TenCoatGame {
       tens,
     };
 
-    this.currentTrick  = [];
-    this.leadPlayer    = winner.player;
-    this.currentPlayer = winner.player;
+    this.currentTrick    = [];
+    this.leadPlayer      = winner.player;
+    this.currentPlayer   = winner.player;
+    this.lastTrickWinner = winner.player;
 
     if (this.hands[0].length === 0) {
       this.state = 'ROUND_OVER';
@@ -239,19 +243,26 @@ class TenCoatGame {
     const [tA, tB] = this.tensWon;
     let roundWinner = -1;
     let trumpTiebreak = false;
+    let lastTrickTiebreak = false;
 
     if (tA > tB) {
       roundWinner = 0; this.teamWins[0]++;
     } else if (tB > tA) {
       roundWinner = 1; this.teamWins[1]++;
     } else {
-      // 2–2 tie: trump 10 holder wins
+      // Tie: trump 10 holder wins; else last-trick winner's team.
       trumpTiebreak = true;
       if (this.trumpTenTeam === 0)      { roundWinner = 0; this.teamWins[0]++; }
       else if (this.trumpTenTeam === 1) { roundWinner = 1; this.teamWins[1]++; }
+      else if (this.lastTrickWinner >= 0) {
+        trumpTiebreak = false;
+        lastTrickTiebreak = true;
+        roundWinner = this._teamOf(this.lastTrickWinner);
+        this.teamWins[roundWinner]++;
+      }
     }
 
-    return { tensTeamA: tA, tensTeamB: tB, roundWinner, trumpTiebreak };
+    return { tensTeamA: tA, tensTeamB: tB, roundWinner, trumpTiebreak, lastTrickTiebreak };
   }
 
   isMatchOver() {
@@ -359,7 +370,8 @@ class TenCoatGame {
 }
 
 /* ---- Expose globals ---- */
-window.TenCoatGame  = TenCoatGame;
+window.DasCoatGame  = DasCoatGame;
+window.TenCoatGame  = DasCoatGame; // backward-compat shim
 window.SUITS        = SUITS;
 window.SUIT_SYMBOLS = SUIT_SYMBOLS;
 window.SUIT_COLORS  = SUIT_COLORS;
