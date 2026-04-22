@@ -1,6 +1,8 @@
 'use strict';
 
-const CW = 62, CH = 90;
+const CW = 68, CH = 100;   // human / trick card size (matches --card-w/h in CSS)
+const SW = 44, SH = 64;    // side-player back size
+const TW = 54, TH = 78;    // top-player back size
 
 class UI {
   constructor() {
@@ -183,11 +185,10 @@ class UI {
     const w       = this.game.getMatchWinner();
     const [wA,wB] = this.game.teamWins;
     const [headline, cls] = w === 0
-      ? ['Your team wins the match!',        'res-win' ]
+      ? ['Your team wins the match!',         'res-win' ]
       : w === 1
       ? ['Robots win. Better luck next time!','res-lose']
-      : ["It's a draw!",                     'res-tie' ];
-
+      : ["It's a draw!",                      'res-tie' ];
     document.getElementById('go-body').innerHTML =
       `<div class="${cls}">${headline}</div><br>Final: <b>${wA} – ${wB}</b>`;
     this._showOv('gameover-modal');
@@ -199,6 +200,7 @@ class UI {
     [1, 2, 3].forEach(p => this._renderAIHand(p));
   }
 
+  /* Human: large arc fan, max spacing for readability */
   _renderHumanHand(clickable) {
     const zone  = document.getElementById('hand-0');
     zone.innerHTML = '';
@@ -207,21 +209,21 @@ class UI {
     if (!n) { zone.style.width = zone.style.height = '0'; return; }
 
     const valid  = clickable ? this.game.getValidCards(0) : [];
-    const avail  = Math.min(window.innerWidth - 16, window.innerWidth * 0.97);
-    const gap    = n > 1 ? Math.min(52, (avail - CW) / (n - 1)) : 0;
+    const avail  = Math.min(window.innerWidth - 12, window.innerWidth * 0.98);
+    const gap    = n > 1 ? Math.min(58, (avail - CW) / (n - 1)) : 0;
     const totalW = (n - 1) * gap + CW;
 
     zone.style.width  = totalW + 'px';
-    zone.style.height = (CH + 36) + 'px';
+    zone.style.height = (CH + 44) + 'px';
 
     cards.forEach((card, i) => {
       const t      = n > 1 ? i / (n - 1) : 0.5;
-      const angle  = (t - 0.5) * 30;
-      const dip    = Math.pow(t - 0.5, 2) * 26;
+      const angle  = (t - 0.5) * 38;                  // wider arc ±19°
+      const dip    = Math.pow(t - 0.5, 2) * 34;       // deeper dip
       const el     = this._cardEl(card);
 
       el.style.left            = (i * gap) + 'px';
-      el.style.bottom          = (36 - dip) + 'px';
+      el.style.bottom          = (40 - dip) + 'px';
       el.style.top             = 'auto';
       el.style.setProperty('--rot', `${angle}deg`);
       el.style.transform       = `rotate(${angle}deg)`;
@@ -246,21 +248,14 @@ class UI {
 
   _addPlayGesture(el, card, angle) {
     let startX = 0, startY = 0;
-
-    const doLift = () => {
-      el.classList.remove('snap-back');
-      el.classList.add('lifted');
-      el.style.setProperty('--rot', `${angle}deg`);
-    };
+    const doLift = () => { el.classList.remove('snap-back'); el.classList.add('lifted'); el.style.setProperty('--rot', `${angle}deg`); };
     const doSnap = () => { el.classList.add('snap-back'); el.classList.remove('lifted'); };
     const doPlay = () => { el.classList.remove('lifted', 'snap-back'); this._onCardClick(card); };
 
-    // Mouse
     el.addEventListener('mouseenter', doLift);
     el.addEventListener('mouseleave', doSnap);
     el.addEventListener('click', doPlay);
 
-    // Touch
     el.addEventListener('touchstart', e => {
       e.preventDefault();
       ({ clientX: startX, clientY: startY } = e.touches[0]);
@@ -284,6 +279,7 @@ class UI {
     el.addEventListener('touchcancel', doSnap);
   }
 
+  /* AI hands */
   _renderAIHand(player) {
     const zone = document.getElementById(`hand-${player}`);
     zone.innerHTML = '';
@@ -291,24 +287,46 @@ class UI {
     if (!n) { zone.style.width = zone.style.height = '0'; return; }
 
     if (player === 2) {
-      const gap    = Math.min(28, Math.max(10, (window.innerWidth * 0.5 - CW) / Math.max(n - 1, 1)));
-      const totalW = (n - 1) * gap + CW;
-      zone.style.width = totalW + 'px';
-      zone.style.height = CH + 'px';
+      /* Top: inverted arc fan — mirrors human hand but dips upward at edges */
+      const maxW  = Math.min(window.innerWidth * 0.72, 340);
+      const gap   = n > 1 ? Math.min(38, (maxW - TW) / (n - 1)) : 0;
+      const total = (n - 1) * gap + TW;
+      zone.style.width  = total + 'px';
+      zone.style.height = (TH + 28) + 'px';
+
       for (let i = 0; i < n; i++) {
-        const el = this._backEl();
-        el.style.cssText = `left:${i * gap}px;top:0;z-index:${i + 1}`;
+        const t     = n > 1 ? i / (n - 1) : 0.5;
+        const angle = (t - 0.5) * 30;
+        const rise  = Math.pow(t - 0.5, 2) * 20; // edges rise (inverted dip)
+        const el    = this._backEl(TW, TH);
+        el.style.left   = (i * gap) + 'px';
+        el.style.top    = rise + 'px';
+        el.style.transform       = `rotate(${angle}deg)`;
+        el.style.transformOrigin = 'top center';
+        el.style.zIndex = i + 1;
         zone.appendChild(el);
       }
+
     } else {
-      const avail  = document.getElementById('middle').offsetHeight || 200;
-      const gap    = Math.min(20, Math.max(8, (avail * 0.7 - CH) / Math.max(n - 1, 1)));
-      const totalH = (n - 1) * gap + CH;
-      zone.style.width = CW + 'px';
+      /* Sides: rotated 90° fan — cards point toward center */
+      const middleH   = document.getElementById('middle').offsetHeight || 260;
+      const gap       = Math.min(18, Math.max(8, (middleH * 0.76 - SH) / Math.max(n - 1, 1)));
+      const totalH    = (n - 1) * gap + SH;
+      const fanSpread = Math.min(26, n * 2.2);
+      const baseAngle = player === 3 ? 90 : -90; // left points right, right points left
+
+      zone.style.width  = (SH + 20) + 'px'; // rotated card height becomes zone width
       zone.style.height = totalH + 'px';
+
       for (let i = 0; i < n; i++) {
-        const el = this._backEl();
-        el.style.cssText = `top:${i * gap}px;left:0;z-index:${i + 1}`;
+        const t   = n > 1 ? i / (n - 1) : 0.5;
+        const rot = baseAngle + (t - 0.5) * fanSpread;
+        const el  = this._backEl(SW, SH);
+        el.style.top    = (i * gap) + 'px';
+        el.style.left   = '10px';
+        el.style.transform       = `rotate(${rot}deg)`;
+        el.style.transformOrigin = 'center center';
+        el.style.zIndex = i + 1;
         zone.appendChild(el);
       }
     }
@@ -325,9 +343,11 @@ class UI {
     return el;
   }
 
-  _backEl() {
+  _backEl(w = CW, h = CH) {
     const el = document.createElement('div');
     el.className = 'card-back';
+    el.style.width  = w + 'px';
+    el.style.height = h + 'px';
     return el;
   }
 
@@ -365,8 +385,8 @@ class UI {
   }
 
   _updatePill() {
-    const [tA]  = this.game.tensWon;
-    const pill  = document.getElementById('tens-pill');
+    const [tA] = this.game.tensWon;
+    const pill = document.getElementById('tens-pill');
     pill.textContent = `${tA} ten${tA !== 1 ? 's' : ''}`;
     pill.classList.toggle('hidden', tA === 0);
   }
@@ -393,7 +413,7 @@ class UI {
     if (el) el.textContent = msg;
   }
 
-  /* ── Screen / overlay helpers ─────────────────────────── */
+  /* ── Helpers ──────────────────────────────────────────── */
   _showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
     document.getElementById(id).classList.remove('hidden');
