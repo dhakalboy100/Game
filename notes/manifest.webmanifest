@@ -1,0 +1,19 @@
+{
+  "name": "Progress Note Formatter",
+  "short_name": "Notes",
+  "description": "On-device LLM that formats free-form shift narratives into structured progress notes.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0b0c",
+  "theme_color": "#0b0b0c",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

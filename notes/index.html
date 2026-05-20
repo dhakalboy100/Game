@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Notes" />
+  <meta name="theme-color" content="#0b0b0c" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="./icon.svg" />
+  <title>Progress Note Formatter</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Progress Note Formatter</h1>
+      <div id="status" class="status status-loading">
+        <span id="status-text">Initializing&hellip;</span>
+        <div class="progress"><div id="progress-bar"></div></div>
+      </div>
+    </header>
+
+    <section class="card">
+      <label for="goals">Goals</label>
+      <p class="hint">One per line. Use the heading style you want in the final note. Examples:<br>
+      <code>Residential Goal #1: Community access</code><br>
+      <code>Residential Goal #2: Choice-making</code><br>
+      <code>Specialty Services Goal #1: Transition support</code></p>
+      <textarea id="goals" rows="5" placeholder="Residential Goal #1: ..."></textarea>
+    </section>
+
+    <section class="card">
+      <label for="narrative">Today's narrative</label>
+      <p class="hint">Tap inside, then tap the <strong>mic</strong> on your keyboard to dictate the whole day. Or type. No names needed &mdash; refer to the individual as "he/she/they".</p>
+      <textarea id="narrative" rows="8" placeholder="Today we went to..."></textarea>
+    </section>
+
+    <button id="format-btn" class="primary" disabled>Format Note</button>
+
+    <section class="card output-card">
+      <div class="output-header">
+        <label for="output">Formatted note</label>
+        <button id="copy-btn" class="secondary" disabled>Copy</button>
+      </div>
+      <textarea id="output" rows="14" readonly placeholder="The structured note will appear here."></textarea>
+    </section>
+
+    <details class="settings">
+      <summary>Settings &amp; info</summary>
+      <div class="settings-body">
+        <p><strong>Model:</strong> <span id="model-name">Llama 3.2 1B Instruct</span></p>
+        <p><strong>Privacy:</strong> Once the model is downloaded, this page runs entirely on your device. No text leaves your phone.</p>
+        <p><strong>Tip:</strong> Add this page to your home screen for one-tap access (Share &rarr; Add to Home Screen on iPhone, Install App on Android).</p>
+        <button id="clear-btn" class="secondary">Clear all fields</button>
+        <button id="reset-cache-btn" class="secondary">Delete cached model</button>
+      </div>
+    </details>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
